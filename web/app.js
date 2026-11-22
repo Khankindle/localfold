@@ -2154,8 +2154,9 @@ function revealViewer(renderer) {
     if (window.Plddt && renderer) window.Plddt.initialize(renderer);
   } catch { /* a missing panel is a lost tab, not a lost fold */ }
   const container = document.getElementById("viewer-container");
-  if (container === null || getComputedStyle(container).display !== "none") return;
-  container.style.display = "flex";
+  if (container === null) return;
+  if (getComputedStyle(container).display === "none") container.style.display = "flex";
+  document.getElementById("canvasContainer")?.classList.add("has-structure");
   const top = document.getElementById("sequence-viewer-container");
   if (top !== null) top.style.display = "block";
   try {
@@ -2181,6 +2182,7 @@ function revealViewer(renderer) {
  * trunk's contact map, which is the earliest thing there is.
  */
 function hideResults() {
+  document.getElementById("canvasContainer")?.classList.remove("has-structure");
   for (const id of ["viewer-container", "sequence-viewer-container",
                     "msa-buttons"]) {
     const box = document.getElementById(id);
