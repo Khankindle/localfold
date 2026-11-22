@@ -129,6 +129,11 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                    unlike a ligand or a modified residue. -->
               <div class="entity-list">
                 <div id="entity-rows"></div>
+                <div class="sequence-examples" aria-label="Example sequences">
+                  <span class="eyebrow">TRY A SEQUENCE</span>
+                  <button type="button" class="example-chip" data-example="ubiquitin">Ubiquitin</button>
+                  <button type="button" class="example-chip" data-example="hiv-protease">HIV-1 protease</button>
+                </div>
               </div>
               <!-- 🔴 NO Options BUTTON. The settings below are always on
                    screen: with three models to choose between, the one control
@@ -145,7 +150,8 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                  sets the column's width and pushes the rule off centre; on its
                  own full-width line it takes the panel's width and the columns
                  above keep their measure. -->
-            <div class="fetch-options" id="foldOptions">
+            <button type="button" id="advanced-toggle" class="advanced-toggle" aria-expanded="false" aria-controls="foldOptions"><span>More settings</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+            <div class="fetch-options is-advanced-collapsed" id="foldOptions">
               <!-- 🔴 ONE ORDER FOR ALL THREE MODELS: Model, Recycles, Seed, and
                    then whatever else the chosen model reads. Model comes first
                    because it decides which of the rest apply; Recycles and Seed

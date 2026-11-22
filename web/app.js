@@ -7314,3 +7314,28 @@ document.addEventListener("fullscreenchange", () => {
   const label = fullscreenButton.querySelector("span");
   if (label) label.innerHTML = `<i class="fa-solid fa-${active ? "compress" : "expand"}"></i>${active ? "Exit full screen" : "Full screen"}`;
 });
+
+const advancedToggle = document.getElementById("advanced-toggle");
+advancedToggle?.addEventListener("click", () => {
+  const options = document.getElementById("foldOptions");
+  if (!options) return;
+  const expanded = options.classList.toggle("is-advanced-open");
+  options.classList.toggle("is-advanced-collapsed", !expanded);
+  advancedToggle.setAttribute("aria-expanded", String(expanded));
+  const label = advancedToggle.querySelector("span");
+  if (label) label.textContent = expanded ? "Fewer settings" : "More settings";
+});
+const sequenceSamples = {
+  ubiquitin: "MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG",
+  "hiv-protease": "PQITLWKRPLVTIRIGGQLKEALLDTGADDTVLEEMSLPGRWKPKMIGGIGGFIKVRQYDQILIEICGHKAIGTVLVGPTPVNIIGRNLLTQIGCTLNF",
+};
+document.querySelectorAll("[data-example]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const sequence = sequenceSamples[button.dataset.example];
+    const field = document.querySelector("#entity-rows textarea.entity-value-protein");
+    if (!sequence || !field) return;
+    field.value = sequence;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.focus();
+  });
+});
