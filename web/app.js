@@ -481,6 +481,32 @@ function reportModelFromUrl(attempt = 0) {
  * dropped file and a restored session are as much as a fold - it follows what
  * is drawn, not what was predicted, and a fold's own downloads follow the fold.
  */
+function predictionFasta(pred) {
+  const source = pred?.entities;
+  let sequences = [];
+  if (typeof source?.sequence === "string") {
+    sequences = source.sequence.split(":").map((sequence) => sequence.trim()).filter(Boolean);
+  } else if (Array.isArray(source)) {
+    for (const entity of source) {
+      if (!entity || !["protein", "dna", "rna"].includes(String(entity.type).toLowerCase())) continue;
+      const sequence = String(entity.sequence ?? entity.value ?? "").replace(/\s+/g, "").trim();
+      for (let copy = 0; copy < Math.max(1, Number(entity.copies) || 1); copy += 1) {
+        if (sequence) sequences.push(sequence);
+      }
+    }
+  }
+  if (sequences.length === 1 && (pred.chainLengths?.length ?? 0) > 1) {
+    const sequence = sequences[0];
+    const lengths = pred.chainLengths;
+    if (lengths.reduce((sum, length) => sum + length, 0) === sequence.length) {
+      let at = 0;
+      sequences = lengths.map((length) => { const part = sequence.slice(at, at + length); at += length; return part; });
+    }
+  }
+  if (sequences.length === 0) return "";
+  return sequences.map((sequence, index) => `>${pred.stem || "LocalFold"}_chain_${String.fromCharCode(65 + index)}\n${sequence}`).join("\n") + "\n";
+}
+
 function syncDownloads() {
   const pred = activePrediction();
   const foldable = !!(pred && pred.pdb);
@@ -502,6 +528,9 @@ function syncDownloads() {
   // empties the page, so there is never a fold on screen that these would
   // offer the wrong files for.
   offer("download-pdb", foldable, "nothing has been folded yet");
+  offer("download-fasta", foldable && predictionFasta(pred).length > 0, "no polymer sequence is available");
+  offer("download-json", foldable, "nothing has been folded yet");
+  offer("report-pdf", foldable, "nothing has been folded yet");
   offer("download-all", foldable, "nothing has been folded yet");
   offer("saveStateButton", drawn, "the viewer is empty");
   const row = document.getElementById("downloads");
@@ -6595,6 +6624,46 @@ element("download-pdb").addEventListener("click", () => {
       name: `rank_${String(entry.rank).padStart(3, "0")}_model_${entry.number}`, pdb: entry.pdb }))
     : undefined;
   if (pred) download(`${pred.stem}.pdb`, several === undefined ? pred.pdb : ensemblePdb(several), "chemical/x-pdb");
+});
+element("download-fasta").addEventListener("click", () => {
+  const pred = activePrediction();
+  const fasta = predictionFasta(pred);
+  if (pred && fasta) downloadBlob(`${pred.stem}.fasta`, fasta, "text/plain;charset=utf-8");
+});
+element("download-json").addEventListener("click", () => {
+  const pred = activePrediction();
+  if (!pred) return;
+  try {
+    const files = archiveFor(pred);
+    const entry = [...files.entries()].find(([name]) => name.endsWith("_full_data_0.json"))
+      ?? [...files.entries()].find(([name]) => name.endsWith("_job_request.json"));
+    const json = entry?.[1] ?? JSON.stringify({ model: pred.model, stem: pred.stem,
+      entities: pred.entities, chainLengths: pred.chainLengths, scores: pred.scores }, null, 2);
+    downloadBlob(`${pred.stem}.json`, json, "application/json;charset=utf-8");
+  } catch (error) {
+    status(error instanceof Error ? error.message : String(error), true);
+  }
+});
+element("report-pdf").addEventListener("click", () => {
+  const pred = activePrediction();
+  if (!pred) return;
+  const report = window.open("", "_blank");
+  if (!report) { status("Allow pop-ups to print the report as a PDF.", true); return; }
+  const safe = (value) => String(value ?? "—").replace(/[&<>\"]/g, (char) => char === "&" ? "&amp;" : char === "<" ? "&lt;" : char === ">" ? "&gt;" : "&quot;");
+  const metric = (id) => document.getElementById(id)?.textContent?.trim() || "—";
+  report.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safe(pred.stem)} · LocalFold report</title><style>
+    *{box-sizing:border-box}body{font:15px/1.55 system-ui,sans-serif;color:#20242a;margin:48px auto;max-width:760px;padding:0 28px}
+    h1{font-size:30px;letter-spacing:-.04em;margin:0 0 4px}.kicker{color:#5d6470;text-transform:uppercase;letter-spacing:.12em;font-size:11px}
+    .rule{height:1px;background:#d9dce1;margin:22px 0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .metric{padding:16px;border:1px solid #d9dce1;border-radius:10px}.metric b{display:block;font-size:22px;margin-top:5px}
+    @media print{body{margin:20px auto}.noprint{display:none}}
+    </style></head><body><div class="kicker">LocalFold · prediction report</div><h1>${safe(pred.stem)}</h1>
+    <div>Model: ${safe(pred.model || pred.family)} &nbsp;·&nbsp; Generated ${new Date().toLocaleString()}</div><div class="rule"></div>
+    <div class="grid"><div class="metric">Mean pLDDT<b>${safe(metric("metricMeanPlddt"))}</b></div>
+    <div class="metric">pTM<b>${safe(metric("metricPtm"))}</b></div><div class="metric">ipTM<b>${safe(metric("metricIptm"))}</b></div></div>
+    <div class="rule"></div><div>Chain lengths: ${safe((pred.chainLengths || []).join(", ") || "—")}</div>
+    <p class="kicker noprint">Choose Print → Save as PDF in your browser.</p><script>window.addEventListener("load",()=>window.print())</script></body></html>`);
+  report.document.close();
 });
 // 🔴 EVERYTHING THE FOLD USED AND PRODUCED, NOT JUST THE SCORES. What this
 // replaces wrote pLDDT, PAE and pTM into one JSON and dropped the rest on the

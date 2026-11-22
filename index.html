@@ -109,6 +109,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
              that the MSA panel never wires itself up. Hidden is safe. Deleted is
              not. Our own ids are distinct from theirs for the same reason. -->
         <div id="fold-panel" class="container-box page-width" style="margin-bottom: 10px;">
+          <div class="panel-intro"><span class="eyebrow">01 / INPUT</span><h2>Your molecule</h2><p>Paste a sequence or describe the entities to fold.</p></div>
           <div class="fetch-panel">
             <!-- WHAT TO FOLD, AND WHAT TO DO WITH IT, on one line: the box
                  grows, and everything that acts on it stacks to its right.
@@ -609,6 +610,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
             <div id="mainContainer">
 
                 <div id="viewerColumn">
+                    <div class="viewer-heading"><span class="eyebrow">02 / STRUCTURE</span><span>Prediction workspace</span></div>
                     <!-- data-autosize="css": THE STYLESHEET OWNS THIS BOX, so
                          py2Dmol's setupViewport writes no inline width and a
                          media query can reach it. Without it every rule aimed
@@ -633,6 +635,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
 
                 <!-- Right side panels container -->
                 <div id="rightPanelsContainer">
+                    <div class="results-heading"><span class="eyebrow">03 / ANALYSIS</span><h2>Results</h2></div>
                     <div id="rightPanelContainer" class="container-box">
 
                         <!-- Toolbar (two rows) -->
@@ -918,6 +921,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                          where a reader looking at pLDDT and PAE already is. -->
                     <!-- Prediction scores card -->
                     <div id="predictionScoresBox" class="container-box" style="display: none;">
+                        <div class="eyebrow">CONFIDENCE SUMMARY</div>
                         <!-- 🔴 NO TITLE AND NO BADGE. Every cell here is
                              labelled, so a heading over them said only that
                              scores are scores; and the badge named the frame
@@ -955,6 +959,15 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                             title="Download the predicted structure">
                             <i class="fa-solid fa-download"></i><span>PDB</span>
                         </button>
+                        <button id="download-fasta" class="btn btn-secondary" title="Download the folded polymer sequences as FASTA">
+                            <i class="fa-solid fa-dna"></i><span>FASTA</span>
+                        </button>
+                        <button id="download-json" class="btn btn-secondary" title="Download model data as JSON">
+                            <i class="fa-solid fa-code"></i><span>JSON</span>
+                        </button>
+                        <button id="report-pdf" class="btn btn-secondary" title="Print or save a summary report as PDF">
+                            <i class="fa-solid fa-file-pdf"></i><span>Report PDF</span>
+                        </button>
                         <button id="download-all" class="btn btn-secondary"
                             title="Download everything this fold used and produced,
                                    as a zip in the AlphaFold 3 server's layout:
@@ -987,7 +1000,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                          Every structure on this page is a prediction, which is
                          why we ask for a plot py2Dmol's own site does not
                          offer - there a B-factor column would be titled pLDDT. -->
-                    <div id="plddtContainer" class="container-box" style="display: none;"></div>
+                    <section class="confidence-section"><div class="eyebrow">RESIDUE CONFIDENCE</div><div id="plddtContainer" class="container-box" style="display: none;"></div></section>
 
                     <!-- Scatter Plot Container (mirrors main viewer sizing; JS sets dimensions) -->
                     <div id="scatterContainer" class="container-box" style="display: none; position: relative;">
