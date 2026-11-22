@@ -7201,3 +7201,47 @@ document.addEventListener("py2dmol-frame-change", syncDownloads);
 document.addEventListener("localfold-runtime-stopped", (event) => {
   retireFolding(event.detail?.why ?? "the fold service has been stopped");
 });
+
+// Lightweight presentation controls for the workspace header. They only
+// affect navigation and theme; prediction/viewer control wiring is untouched.
+const themeToggle = document.getElementById("theme-toggle");
+if (themeToggle !== null) {
+  try {
+    if (localStorage.getItem("localfold-theme") === "dark") {
+      document.body.classList.add("lf-dark");
+      themeToggle.setAttribute("aria-pressed", "true");
+      themeToggle.textContent = "Light";
+    }
+  } catch { /* private browsing can disable storage; the control still works */ }
+  themeToggle.addEventListener("click", () => {
+    const dark = document.body.classList.toggle("lf-dark");
+    themeToggle.setAttribute("aria-pressed", String(dark));
+    themeToggle.textContent = dark ? "Light" : "Dark";
+    try { localStorage.setItem("localfold-theme", dark ? "dark" : "light"); }
+    catch { /* session-only theme is still useful */ }
+  });
+}
+document.getElementById("model-shortcut")?.addEventListener("click", () => {
+  const model = document.getElementById("model-family");
+  model?.scrollIntoView({ behavior: "smooth", block: "center" });
+  model?.focus({ preventScroll: true });
+});
+
+const fullscreenButton = document.getElementById("fullscreenButton");
+fullscreenButton?.addEventListener("click", async () => {
+  const target = document.getElementById("viewer-container");
+  if (target === null) return;
+  try {
+    if (document.fullscreenElement === target) await document.exitFullscreen();
+    else await target.requestFullscreen();
+  } catch (error) {
+    setStatus(`Full screen is unavailable: ${error.message}`, true);
+  }
+});
+document.addEventListener("fullscreenchange", () => {
+  if (fullscreenButton === null) return;
+  const active = document.fullscreenElement === document.getElementById("viewer-container");
+  fullscreenButton.setAttribute("aria-pressed", String(active));
+  const label = fullscreenButton.querySelector("span");
+  if (label) label.innerHTML = `<i class="fa-solid fa-${active ? "compress" : "expand"}"></i>${active ? "Exit full screen" : "Full screen"}`;
+});

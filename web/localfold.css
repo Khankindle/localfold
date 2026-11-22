@@ -1995,3 +1995,29 @@ footer { grid-column: 1 / -1; }
   #viewer-container #canvasContainer { height: 62vh !important; min-height: 360px; }
   #viewer-container #rightPanelsContainer { display: flex; }
 }
+
+/* Dark mode is an optional workspace theme, not a second application. */
+body.lf-dark { background: #111815 !important; color: #e4ece7 !important; }
+body.lf-dark .container-box,
+body.lf-dark #status-row { background: #1b2520 !important; border-color: #35453c !important; color: #e4ece7; }
+body.lf-dark #fold-panel, body.lf-dark #upload-options-container { background: #1b2520 !important; }
+body.lf-dark #sequence, body.lf-dark #target,
+body.lf-dark input, body.lf-dark textarea, body.lf-dark select {
+  color: #e4ece7 !important; background-color: #121a16 !important; border-color: #43564a !important;
+}
+body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) {
+  color: #dce8e0; background-color: #25332b; border-color: #43564a;
+}
+body.lf-dark .page-head-fold { border-color: #35453c; }
+body.lf-dark .page-head-fold h1 { color: #9ed2b5; }
+body.lf-dark #status-line, body.lf-dark .fetch-option-title { color: #a8b8ae; }
+body.lf-dark #canvasContainer { border-color: #35453c; }
+body.lf-dark #canvasContainer::after { background: #101713; }
+body.lf-dark footer { color: #a8b8ae; border-color: #35453c; }
+.workspace-tagline { margin: 0 auto 0 14px; color: var(--lf-muted); font-size: 15px; }
+body.lf-dark .workspace-tagline { color: #a8b8ae; }
+#viewer-container:fullscreen { width: 100vw !important; height: 100vh; padding: 14px; overflow: auto; background: var(--lf-paper); }
+body.lf-dark #viewer-container:fullscreen { background: #111815; }
+#viewer-container:fullscreen #mainContainer { height: 100%; }
+#viewer-container:fullscreen #canvasContainer { height: calc(100vh - 100px) !important; }
+@media (max-width: 760px) { .workspace-tagline { display: none; } }
