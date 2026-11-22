@@ -72,7 +72,10 @@ AI Context: STANDALONE WEB APP ENTRY POINT
              short by their column and the copies fields could not line up. -->
         <div class="page-head page-head-fold" style="padding-right: 0;">
             <h1>LocalFold</h1>
+            <p class="workspace-tagline">Sequence to structure, on your own laptop.</p>
             <div class="fold-actions">
+              <button type="button" id="model-shortcut" class="btn btn-grey btn-small" title="Jump to model settings">Model</button>
+              <button type="button" id="theme-toggle" class="btn btn-grey btn-small" aria-pressed="false">Dark</button>
               <button type="button" id="add-entity" class="btn btn-grey btn-small">
                 <i class="fa-solid fa-plus"></i>
                 <span>Add entity</span>
@@ -106,6 +109,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
              that the MSA panel never wires itself up. Hidden is safe. Deleted is
              not. Our own ids are distinct from theirs for the same reason. -->
         <div id="fold-panel" class="container-box page-width" style="margin-bottom: 10px;">
+          <div class="panel-intro"><span class="eyebrow">01 / INPUT</span><h2>Your molecule</h2><p>Paste a sequence or describe the entities to fold.</p></div>
           <div class="fetch-panel">
             <!-- WHAT TO FOLD, AND WHAT TO DO WITH IT, on one line: the box
                  grows, and everything that acts on it stacks to its right.
@@ -125,6 +129,11 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                    unlike a ligand or a modified residue. -->
               <div class="entity-list">
                 <div id="entity-rows"></div>
+                <div class="sequence-examples" aria-label="Example sequences">
+                  <span class="eyebrow">TRY A SEQUENCE</span>
+                  <button type="button" class="example-chip" data-example="ubiquitin">Ubiquitin</button>
+                  <button type="button" class="example-chip" data-example="hiv-protease">HIV-1 protease</button>
+                </div>
               </div>
               <!-- 🔴 NO Options BUTTON. The settings below are always on
                    screen: with three models to choose between, the one control
@@ -141,7 +150,8 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                  sets the column's width and pushes the rule off centre; on its
                  own full-width line it takes the panel's width and the columns
                  above keep their measure. -->
-            <div class="fetch-options" id="foldOptions">
+            <button type="button" id="advanced-toggle" class="advanced-toggle" aria-expanded="false" aria-controls="foldOptions"><span>More settings</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+            <div class="fetch-options is-advanced-collapsed" id="foldOptions">
               <!-- 🔴 ONE ORDER FOR ALL THREE MODELS: Model, Recycles, Seed, and
                    then whatever else the chosen model reads. Model comes first
                    because it decides which of the rest apply; Recycles and Seed
@@ -601,11 +611,12 @@ AI Context: STANDALONE WEB APP ENTRY POINT
             </div>
         </div>
 
-        <div id="viewer-container" class="py2dmol-viewer-instance" style="display: none;">
+        <div id="viewer-container" class="py2dmol-viewer-instance">
 
             <div id="mainContainer">
 
                 <div id="viewerColumn">
+                    <div class="viewer-heading"><span class="eyebrow">02 / STRUCTURE</span><span>Prediction workspace</span></div>
                     <!-- data-autosize="css": THE STYLESHEET OWNS THIS BOX, so
                          py2Dmol's setupViewport writes no inline width and a
                          media query can reach it. Without it every rule aimed
@@ -630,6 +641,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
 
                 <!-- Right side panels container -->
                 <div id="rightPanelsContainer">
+                    <div class="results-heading"><span class="eyebrow">03 / ANALYSIS</span><h2>Results</h2></div>
                     <div id="rightPanelContainer" class="container-box">
 
                         <!-- Toolbar (two rows) -->
@@ -660,8 +672,11 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                                 <!-- Rotate: checkbox styled as a button -->
                                 <label class="btn-toggle btn-flex" id="rotateToggle" title="Toggle auto-rotation">
                                     <input type="checkbox" id="rotationCheckbox">
-                                    <span><i class="fa-solid fa-rotate"></i>Rotate</span>
+                                    <span><i class="fa-solid fa-rotate"></i>Spin</span>
                                 </label>
+                                <button id="fullscreenButton" class="btn-toggle btn-flex" type="button" title="Open the structure viewer full screen">
+                                    <span><i class="fa-solid fa-expand"></i>Full screen</span>
+                                </button>
 
 
                             </div>
@@ -670,7 +685,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                                 <button id="styleToggle" class="btn-toggle btn-flex"
                                     aria-expanded="false" aria-controls="stylePanel"
                                     title="Render style and its settings">
-                                    <span><i class="fa-solid fa-palette"></i>Style</span>
+                                    <span><i class="fa-solid fa-palette"></i>Style &amp; colour</span>
                                 </button>
 
                                 <!-- Clip: PyMOL's near/far slab, cutting the drawing. -->
@@ -683,7 +698,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                                 <button id="saveImageButton" class="btn-toggle btn-flex"
                                     aria-expanded="false" aria-controls="savePanel"
                                     title="Capture an image or a video">
-                                    <span><i class="fa-solid fa-camera"></i>Capture</span>
+                                    <span><i class="fa-solid fa-camera"></i>Save image</span>
                                 </button>
                             </div>
                         </div>
@@ -912,6 +927,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                          where a reader looking at pLDDT and PAE already is. -->
                     <!-- Prediction scores card -->
                     <div id="predictionScoresBox" class="container-box" style="display: none;">
+                        <div class="eyebrow">CONFIDENCE SUMMARY</div>
                         <!-- 🔴 NO TITLE AND NO BADGE. Every cell here is
                              labelled, so a heading over them said only that
                              scores are scores; and the badge named the frame
@@ -949,6 +965,15 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                             title="Download the predicted structure">
                             <i class="fa-solid fa-download"></i><span>PDB</span>
                         </button>
+                        <button id="download-fasta" class="btn btn-secondary" title="Download the folded polymer sequences as FASTA">
+                            <i class="fa-solid fa-dna"></i><span>FASTA</span>
+                        </button>
+                        <button id="download-json" class="btn btn-secondary" title="Download model data as JSON">
+                            <i class="fa-solid fa-code"></i><span>JSON</span>
+                        </button>
+                        <button id="report-pdf" class="btn btn-secondary" title="Print or save a summary report as PDF">
+                            <i class="fa-solid fa-file-pdf"></i><span>Report PDF</span>
+                        </button>
                         <button id="download-all" class="btn btn-secondary"
                             title="Download everything this fold used and produced,
                                    as a zip in the AlphaFold 3 server's layout:
@@ -981,7 +1006,7 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                          Every structure on this page is a prediction, which is
                          why we ask for a plot py2Dmol's own site does not
                          offer - there a B-factor column would be titled pLDDT. -->
-                    <div id="plddtContainer" class="container-box" style="display: none;"></div>
+                    <section class="confidence-section"><div class="eyebrow">RESIDUE CONFIDENCE</div><div id="plddtContainer" class="container-box" style="display: none;"></div></section>
 
                     <!-- Scatter Plot Container (mirrors main viewer sizing; JS sets dimensions) -->
                     <div id="scatterContainer" class="container-box" style="display: none; position: relative;">

@@ -1907,3 +1907,321 @@ body.bg-gray-50 {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Proteinify-inspired prediction workspace: input and model choices remain in
+   the left rail, the structure gets the broad centre stage, and py2Dmol's
+   existing analysis/tools occupy the right rail. All original IDs and controls
+   stay in place so the existing application wiring remains authoritative. */
+body.bg-gray-50 { padding: 16px !important; }
+body.bg-gray-50 > .mx-auto.page-width {
+  width: min(100%, 1540px) !important;
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(300px, 370px) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(500px, 1fr) auto auto;
+  align-items: start;
+  gap: 12px 16px;
+}
+.page-head-fold { grid-column: 1 / -1; grid-row: 1; margin: 0; }
+#fold-panel {
+  grid-column: 1; grid-row: 2 / span 2;
+  width: 100% !important; margin: 0 !important;
+  max-height: min(72vh, 780px); overflow: auto;
+}
+#fold-panel .fetch-row { display: block; }
+#fold-panel .entity-list { width: 100%; }
+#fold-panel .fetch-options { display: flex; flex-wrap: wrap; gap: 10px; }
+#fold-panel .fetch-option-group { flex: 1 1 125px; min-width: 0; }
+#fold-panel #msaModeGroup, #fold-panel #plmGroup { margin-left: 0; }
+#upload-options-container {
+  grid-column: 1; grid-row: 4;
+  width: 100% !important; margin: 0 !important;
+}
+#status-row {
+  grid-column: 2; grid-row: 2;
+  width: 100%; min-height: 56px; padding: 12px 16px;
+  border: 1px solid var(--lf-line); border-radius: 12px;
+  background: #fff; box-shadow: 0 2px 10px rgb(23 54 39 / 5%);
+}
+#viewer-container {
+  grid-column: 2; grid-row: 3 / span 2;
+  display: block; width: 100% !important; max-width: none !important;
+  margin: 0; min-width: 0;
+}
+#viewer-container #mainContainer {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  align-items: start; gap: 12px;
+}
+#viewer-container #viewerColumn { min-width: 0; width: 100%; }
+#viewer-container #canvasContainer {
+  width: 100% !important; height: min(66vh, 740px) !important;
+  min-height: 480px; resize: vertical;
+}
+#viewer-container #canvas { width: 100%; height: 100%; }
+#viewer-container #rightPanelsContainer,
+#viewer-container #rightPanelContainer { width: 100%; min-width: 0; }
+#viewer-container #rightPanelsContainer { gap: 12px; }
+#viewer-container #rightPanelContainer,
+#viewer-container #heatmapContainer,
+#viewer-container #predictionScoresBox {
+  border-radius: 12px; border-color: var(--lf-line);
+}
+#sequence-viewer-container, #msa-buttons { grid-column: 1 / -1; width: 100% !important; }
+footer { grid-column: 1 / -1; }
+#canvasContainer::after {
+  content: "Paste a sequence, or open a structure.\A\A Folding needs a model installed first. You can already open any PDB file to explore it.";
+  white-space: pre-wrap; position: absolute; z-index: 1;
+  inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 32px; text-align: center; color: #dce8e1;
+  font-size: clamp(18px, 2vw, 25px); font-weight: 650; line-height: 1.6;
+  background: #101713; pointer-events: none;
+}
+#canvasContainer.has-structure::after { display: none; }
+@media (max-width: 1100px) {
+  body.bg-gray-50 > .mx-auto.page-width {
+    grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+  }
+  #viewer-container #mainContainer { grid-template-columns: minmax(0, 1fr); }
+  #viewer-container #rightPanelsContainer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #fold-panel { max-height: none; }
+}
+@media (max-width: 760px) {
+  body.bg-gray-50 { padding: 10px !important; }
+  body.bg-gray-50 > .mx-auto.page-width { display: flex; flex-direction: column; gap: 10px; }
+  .page-head-fold, #fold-panel, #upload-options-container, #status-row,
+  #viewer-container, #sequence-viewer-container, #msa-buttons { width: 100% !important; }
+  #fold-panel { max-height: none; }
+  #viewer-container #canvasContainer { height: 62vh !important; min-height: 360px; }
+  #viewer-container #rightPanelsContainer { display: flex; }
+}
+
+/* Dark mode is an optional workspace theme, not a second application. */
+body.lf-dark { background: #111815 !important; color: #e4ece7 !important; }
+body.lf-dark .container-box,
+body.lf-dark #status-row { background: #1b2520 !important; border-color: #35453c !important; color: #e4ece7; }
+body.lf-dark #fold-panel, body.lf-dark #upload-options-container { background: #1b2520 !important; }
+body.lf-dark #sequence, body.lf-dark #target,
+body.lf-dark input, body.lf-dark textarea, body.lf-dark select {
+  color: #e4ece7 !important; background-color: #121a16 !important; border-color: #43564a !important;
+}
+body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) {
+  color: #dce8e0; background-color: #25332b; border-color: #43564a;
+}
+body.lf-dark .page-head-fold { border-color: #35453c; }
+body.lf-dark .page-head-fold h1 { color: #9ed2b5; }
+body.lf-dark #status-line, body.lf-dark .fetch-option-title { color: #a8b8ae; }
+body.lf-dark #canvasContainer { border-color: #35453c; }
+body.lf-dark #canvasContainer::after { background: #101713; }
+body.lf-dark footer { color: #a8b8ae; border-color: #35453c; }
+.workspace-tagline { margin: 0 auto 0 14px; color: var(--lf-muted); font-size: 15px; }
+body.lf-dark .workspace-tagline { color: #a8b8ae; }
+#viewer-container:fullscreen { width: 100vw !important; height: 100vh; padding: 14px; overflow: auto; background: var(--lf-paper); }
+body.lf-dark #viewer-container:fullscreen { background: #111815; }
+#viewer-container:fullscreen #mainContainer { height: 100%; }
+#viewer-container:fullscreen #canvasContainer { height: calc(100vh - 100px) !important; }
+@media (max-width: 760px) { .workspace-tagline { display: none; } }
+
+/* Editorial finish: warm paper, ink, and a single cobalt action colour. */
+:root {
+  --lf-forest: #3d55bd; --lf-forest-dark: #2e429a; --lf-mint: #e9edff;
+  --lf-ink: #20232a; --lf-muted: #737782; --lf-line: #dedfe3; --lf-paper: #f4f3f0;
+}
+body.bg-gray-50 { background: var(--lf-paper); color: var(--lf-ink); }
+.page-head-fold { border-color: #d9d7d1; }
+.page-head-fold h1 { color: #20232a; }
+.page-head-fold h1::after { background: repeating-linear-gradient(135deg, transparent 0 5px, #828697 5px 7px, transparent 7px 12px); }
+.container-box, #status-row { border-radius: 10px; box-shadow: 0 2px 8px rgb(29 31 38 / 5%); }
+#fold-panel, #upload-options-container { background: #fff; }
+.btn-primary { background: #3d55bd !important; border-color: #3d55bd !important; }
+.btn-primary:hover:not(:disabled) { background: #2e429a !important; }
+.panel-intro { padding: 2px 2px 14px; }
+.panel-intro h2, .results-heading h2 { margin: 5px 0 4px; font-size: 20px; letter-spacing: -.035em; color: var(--lf-ink); }
+.panel-intro p { margin: 0; color: var(--lf-muted); font-size: 12px; line-height: 1.5; }
+.eyebrow { display: block; color: #6b7282; font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+.viewer-heading { display: flex; align-items: center; gap: 12px; min-height: 32px; color: var(--lf-muted); font-size: 12px; }
+.viewer-heading .eyebrow { display: inline; }
+.results-heading { padding: 2px 2px 3px; }
+#downloads[style*="flex"] { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+#downloads .btn { min-height: 42px; justify-content: flex-start; }
+#downloads .btn span { flex: 1; text-align: left; }
+#downloads #download-all, #downloads #saveStateButton { grid-column: 1 / -1; }
+#predictionScoresBox .eyebrow { margin-bottom: 9px; }
+.confidence-section:has(#plddtContainer[style*="display: none"]) { display: none; }
+.confidence-section > .eyebrow { margin: 8px 2px; }
+#viewer-container #rightPanelContainer { background: transparent; border: 0; padding: 0; box-shadow: none; }
+#viewer-container #canvasContainer { border-color: #252a31; }
+body.lf-dark {
+  --lf-paper: #14161a; --lf-ink: #e8e9ed; --lf-muted: #a4a7b0; --lf-line: #30343c;
+  background: #14161a !important; color: #e8e9ed !important;
+}
+body.lf-dark .container-box, body.lf-dark #status-row,
+body.lf-dark #fold-panel, body.lf-dark #upload-options-container { background: #1d2026 !important; border-color: #343840 !important; color: #e8e9ed; }
+body.lf-dark .page-head-fold { border-color: #343840; }
+body.lf-dark .page-head-fold h1, body.lf-dark .panel-intro h2, body.lf-dark .results-heading h2 { color: #f0f1f4; }
+body.lf-dark .page-head-fold h1::after { background: repeating-linear-gradient(135deg, transparent 0 5px, #818795 5px 7px, transparent 7px 12px); }
+body.lf-dark input, body.lf-dark textarea, body.lf-dark select { background: #15171c !important; color: #e8e9ed !important; border-color: #444953 !important; }
+body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) { background: #252932; color: #e4e5e9; border-color: #444953; }
+body.lf-dark .panel-intro p, body.lf-dark .workspace-tagline, body.lf-dark .viewer-heading { color: #a4a7b0; }
+body.lf-dark .eyebrow { color: #a4a7b0; }
+body.lf-dark #status-line { color: #c5c8cf; }
+body.lf-dark #viewer-container:fullscreen { background: #14161a; }
+@media (max-width: 760px) {
+  .viewer-heading { min-height: 25px; }
+  #downloads[style*="flex"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Progressive disclosure keeps the molecular input immediate and the model's
+   many specialist parameters available without making them the first thing
+   every visitor has to parse. */
+#fold-panel .fetch-options.is-advanced-collapsed > :not(#modelGroup) { display: none !important; }
+.advanced-toggle {
+  display: inline-flex; align-items: center; gap: 9px; width: 100%; padding: 10px 0;
+  margin: 8px 0 4px; border: 0; border-top: 1px solid var(--lf-line); background: transparent;
+  color: var(--lf-muted); font: inherit; font-size: 12px; font-weight: 600; line-height: 1.2; text-align: left; cursor: pointer;
+}
+.advanced-toggle i { margin-left: auto; transition: transform .18s ease; }
+.advanced-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+.sequence-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.sequence-examples .eyebrow { flex-basis: 100%; margin: 0 0 2px; }
+.example-chip {
+  padding: 6px 10px; border: 1px solid #d9dce3; border-radius: 999px;
+  color: #424955; background: #f6f6f7; font: inherit; font-size: 11px; font-weight: 500; line-height: 1.2; cursor: pointer;
+}
+.example-chip:hover { border-color: #8795d4; color: #354cac; background: #f1f3ff; }
+body.lf-dark .advanced-toggle { border-color: #343840; }
+body.lf-dark .example-chip { background: #252932; border-color: #444953; color: #e4e5e9; }
+body.lf-dark .example-chip:hover { border-color: #8999ee; color: #cbd3ff; }
+
+/* Reference direction: the restrained editorial language of the supplied
+   CloudyAI page—paper, rules, serif display type, monospaced metadata, and one
+   oxide accent. No gradients, pill farms, or ornamental shadow cards. */
+:root {
+  --lf-paper: #f2f0ea;
+  --lf-ink: #20201e;
+  --lf-muted: #686660;
+  --lf-line: #d2cfc7;
+  --lf-forest: #b5513d;
+  --lf-forest-dark: #943f30;
+  --lf-mint: #f6e7e1;
+}
+body.bg-gray-50 {
+  background: var(--lf-paper) !important;
+  color: var(--lf-ink);
+  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  padding: 12px 20px !important;
+}
+body.bg-gray-50 > .mx-auto.page-width {
+  width: min(100%, 1460px) !important;
+  gap: 12px 24px;
+}
+.page-head-fold {
+  min-height: 72px;
+  border-top: 3px solid var(--lf-ink);
+  border-bottom: 1px solid var(--lf-line);
+  margin: 0;
+  padding: 9px 0 10px;
+}
+.page-head-fold h1 {
+  color: var(--lf-ink);
+  font: 400 clamp(30px, 3.4vw, 42px)/1 Georgia, "Times New Roman", serif;
+  letter-spacing: -.055em;
+}
+.page-head-fold h1::after { content: none; }
+.workspace-tagline { color: var(--lf-muted); font: 13px/1.4 Georgia, "Times New Roman", serif; }
+.fold-actions { gap: 7px; }
+.btn, .btn-toggle, .advanced-toggle, .example-chip, .fold-actions button {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+.btn-primary, .btn-primary:hover:not(:disabled) {
+  color: #fff !important;
+  background: var(--lf-forest) !important;
+  border-color: var(--lf-forest) !important;
+}
+#fold-panel, #upload-options-container, #status-row,
+#viewer-container #rightPanelContainer, #rightPanelContainer,
+#predictionScoresBox, #downloads, #plddtContainer,
+#heatmapContainer, #canvasContainer, #controlsContainer {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+#fold-panel, #upload-options-container, #status-row,
+#viewer-container #rightPanelContainer, #predictionScoresBox,
+#downloads, #plddtContainer, #heatmapContainer, #controlsContainer {
+  border: 1px solid var(--lf-line) !important;
+  background: #f8f7f3 !important;
+}
+.panel-intro { padding: 0 0 14px; border-bottom: 1px solid var(--lf-line); margin-bottom: 13px; }
+.panel-intro h2, .results-heading h2 {
+  margin: 6px 0 3px;
+  color: var(--lf-ink);
+  font: 400 27px/1.05 Georgia, "Times New Roman", serif;
+  letter-spacing: -.035em;
+}
+.panel-intro p { color: var(--lf-muted); font-size: 12px; }
+.eyebrow, .fetch-option-title, #model-load-text {
+  color: var(--lf-muted) !important;
+  font: 10px/1.4 "SFMono-Regular", Consolas, "Liberation Mono", monospace !important;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+#sequence, #target, input, textarea, select {
+  border-radius: 2px !important;
+  border-color: #c8c4ba !important;
+  background: #fdfcf9 !important;
+  box-shadow: none !important;
+  color: var(--lf-ink) !important;
+}
+#sequence:focus, #target:focus, input:focus, textarea:focus, select:focus {
+  border-color: var(--lf-forest) !important;
+  outline: 2px solid rgb(181 81 61 / 14%) !important;
+  outline-offset: 1px;
+}
+.example-chip {
+  border-color: #c8c4ba;
+  color: #403f3b;
+  background: transparent;
+}
+.example-chip:hover { border-color: var(--lf-forest); color: var(--lf-forest-dark); background: #f6e7e1; }
+.advanced-toggle { color: var(--lf-muted); border-color: var(--lf-line); }
+.viewer-heading {
+  border-bottom: 1px solid var(--lf-line);
+  padding-bottom: 7px;
+  color: var(--lf-muted);
+  font: 12px/1.3 Georgia, "Times New Roman", serif;
+}
+.results-heading { border-top: 1px solid var(--lf-ink); padding: 12px 0 7px; }
+.results-heading h2 { font-size: 30px; }
+#viewer-container #canvasContainer { border: 1px solid #292a2a !important; }
+#canvasContainer::after { background: #151716; color: #e7e5df; font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
+#downloads[style*="flex"] { gap: 0; }
+#downloads .btn { border: 0 !important; border-bottom: 1px solid var(--lf-line) !important; background: transparent !important; }
+#downloads .btn:last-child { border-bottom: 0 !important; }
+#status-row { padding: 9px 12px; }
+#status-message { color: var(--lf-ink); }
+body.lf-dark {
+  --lf-paper: #171817; --lf-ink: #e9e6df; --lf-muted: #aaa69d; --lf-line: #45443f;
+  --lf-forest: #d07860; --lf-forest-dark: #e08e76; --lf-mint: #392520;
+  background: #171817 !important; color: #e9e6df !important;
+}
+body.lf-dark #fold-panel, body.lf-dark #upload-options-container,
+body.lf-dark #status-row, body.lf-dark #viewer-container #rightPanelContainer,
+body.lf-dark #predictionScoresBox, body.lf-dark #downloads,
+body.lf-dark #plddtContainer, body.lf-dark #heatmapContainer,
+body.lf-dark #controlsContainer { background: #20211f !important; border-color: #45443f !important; color: #e9e6df; }
+body.lf-dark .page-head-fold { border-color: #45443f; }
+body.lf-dark .page-head-fold h1, body.lf-dark .panel-intro h2,
+body.lf-dark .results-heading h2 { color: #e9e6df; }
+body.lf-dark #sequence, body.lf-dark #target, body.lf-dark input,
+body.lf-dark textarea, body.lf-dark select { background: #171817 !important; color: #e9e6df !important; border-color: #57564f !important; }
+body.lf-dark .example-chip, body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) { background: transparent; color: #e9e6df; border-color: #57564f; }
+body.lf-dark .example-chip:hover { color: #f0aa95; border-color: #d07860; background: #30231f; }
+body.lf-dark #downloads .btn { border-color: #45443f !important; }
+body.lf-dark #viewer-container:fullscreen { background: #171817; }
+@media (max-width: 760px) {
+  body.bg-gray-50 { padding: 8px !important; }
+  .page-head-fold { min-height: 58px; }
+  .fold-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .workspace-tagline { display: none; }
+}
