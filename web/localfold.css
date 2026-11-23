@@ -2904,3 +2904,19 @@ html[data-theme="dark"] .viewer-heading { color: var(--ink-muted); }
    do beyond not leaving a light strip if one ever shows. */
 .py2dmol-map-tabs [role="tab"] { color: var(--ink); }
 .py2dmol-map-tabs [role="tab"][aria-selected="true"] { color: var(--ink); }
+
+/* ===========================================================================
+   THE OBJECT PICKER ROW.
+   🔴 ROOT CAUSE: py2Dmol's renderer forces `#objectRow` to `display:flex` in
+   inline style (it only does this so its own prev/next controls have somewhere
+   to sit), and the empty `<select>` inside it is a visible chip. On a page that
+   deliberately mounts ONE object at a time, an empty dropdown is chrome with no
+   function: nothing can be picked. The picker stays; the row is gone until a
+   fold exists to name.
+   =========================================================================== */
+#objectRow {
+  display: none;
+}
+#objectRow.has-object {
+  display: flex;
+}

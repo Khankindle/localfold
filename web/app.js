@@ -2357,7 +2357,29 @@ function installCanvasWatch() {
       return result;
     };
   }
-  syncViewerCover();
+  syncObjectRow();
+}
+
+/**
+ * Show the picker row only while it can name something.
+ *
+ * 🔴 AND WATCH THE SELECT, NOT THE INGEST. Nothing in this file writes an
+ * option: the bundle does it in `_switchToObject`, which every arrival path
+ * funnels through, and that runs after the promise from the caller resolves -
+ * so a check made here would read an empty list one turn too early and the row
+ * would stay hidden over a structure that had just arrived.
+ */
+function syncObjectRow() {
+  const row = document.getElementById("objectRow");
+  const select = document.getElementById("objectSelect");
+  if (row === null || select === null) return;
+  const has = select.options.length > 0 && select.value !== "";
+  row.classList.toggle("has-object", has);
+  row.style.display = "";   // py2dmol's inline flex has to go for the class to rule
+}
+if (document.getElementById("objectSelect") !== null) {
+  new MutationObserver(() => syncObjectRow())
+    .observe(document.getElementById("objectSelect"), { childList: true });
 }
 
 installCanvasWatch();
