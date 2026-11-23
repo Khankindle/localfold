@@ -7397,5 +7397,18 @@ document.querySelectorAll("[data-example]").forEach((button) => {
   });
 });
 
-document.getElementById("entity-rows")?.addEventListener("input", updateModelMemoryAdvisory);
+function fitSequenceTextareas() {
+  document.querySelectorAll("#entity-rows textarea.entity-value-protein, #entity-rows textarea.entity-value-dna, #entity-rows textarea.entity-value-rna").forEach((field) => {
+    field.style.height = "auto";
+    field.style.height = `${Math.max(190, field.scrollHeight)}px`;
+  });
+}
+const entityRowsElement = document.getElementById("entity-rows");
+entityRowsElement?.addEventListener("input", () => {
+  fitSequenceTextareas();
+  updateModelMemoryAdvisory();
+});
+document.getElementById("add-entity")?.addEventListener("click", () => requestAnimationFrame(fitSequenceTextareas));
+window.addEventListener("resize", fitSequenceTextareas);
+fitSequenceTextareas();
 document.getElementById("max-msa")?.addEventListener("change", updateModelMemoryAdvisory);
