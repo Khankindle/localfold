@@ -2920,3 +2920,20 @@ html[data-theme="dark"] .viewer-heading { color: var(--ink-muted); }
 #objectRow.has-object {
   display: flex;
 }
+
+/* ===========================================================================
+   THE SCATTER PLOT'S BOX.
+   🔴 ROOT CAUSE OF THE EMPTY SQUARE: `#scatterContainer` sits in the right rail
+   as a child of `#rightPanelsContainer`, and the sheet gives that column
+   `gap: 12px`. The vendor's own visibility routine writes `display:flex` on it,
+   so the gap puts an empty rounded box with padding between the panel above and
+   the panel below - a card that says nothing. Hidden it is collapsed by the
+   UA rule; when a fold carries points it should read as one more page, which is
+   what the margins do.
+   =========================================================================== */
+#scatterContainer {
+  margin: 0;
+  padding: 8px;
+}
+#scatterContainer[style*="none"] { display: none !important; }
+#scatterCanvas { display: block; width: 100%; height: auto; }
