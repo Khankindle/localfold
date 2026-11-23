@@ -2424,22 +2424,24 @@ function selectResultsTab(name) {
     if (page !== null) page.hidden = RESULT_PAGES[key] !== RESULT_PAGES[name];
   }
   const mapPage = document.getElementById("result-page-map");
-  const map = document.getElementById("heatmapContainer");
+  const wrap = document.getElementById("heatmapWrap");
   if (name === "pae" || name === "contact") {
     const renderer = currentRenderer();
     try {
       renderer?.heatmapRenderer?.pin?.(name);
       window.Heatmap?.updateVisibility?.(renderer);
-      // A map that exists draws; a prediction whose maps have not arrived yet
-      // says so rather than showing an empty square.
-      const hasMap = map !== null && map.style.display !== "none";
-      const empty = document.getElementById("mapEmpty");
-      if (empty !== null) empty.hidden = hasMap;
     } catch { /* the panel is optional */ }
-  } else if (mapPage !== null && map !== null) {
-    const empty = document.getElementById("mapEmpty");
-    if (empty !== null) empty.hidden = true;
   }
+  // The map page says what it holds, and the sentence about no map belongs to
+  // the map - not to the tab. 🔴 READ THE WRAP: `mapEmpty` sits beside the canvas
+  // inside `#heatmapWrap`, and `updateVisibility` only flips the container's
+  // class, so "the container has a style.display" was never the test; a crystal
+  // with no matrices left the empty sentence up over a live picture.
+  const shown = mapPage !== null && !mapPage.hidden;
+  const hasBytes = currentRenderer()?.heatmapRenderer?.bytes != null;
+  const empty = document.getElementById("mapEmpty");
+  if (empty !== null) empty.hidden = !(shown && !hasBytes);
+  if (hasBytes) updateMapScaleUI(name);
 }
 
 function installResultsTabs() {
@@ -7776,17 +7778,30 @@ function themedRamp(key) {
     : [[0, "#3d55bd"], [0.5, "#f2f0ea"], [1, "#c2452d"]]);
 }
 
-/** The colour bar under the map: the same stops, as a gradient and as words. */
+/**
+ * The colour bar under the map: the same stops, as a gradient and as words.
+ *
+ * 🔴 THE MAP'S PANEL IS NOT THE PANEL'S STYLE. `mapEmpty` sits next to it inside
+ * `#heatmapWrap`, so the map page shows the empty sentence over a live picture
+ * until this reads the map's own state - which is where `setMaps` writes,
+ * because `updateVisibility` only flips the class. Read the wrap, not the
+ * container's display.
+ */
 function updateMapScaleUI(key) {
   const bar = document.getElementById("mapColourBar");
   const ticks = document.getElementById("mapBarTicks");
   const track = document.getElementById("mapBarTrack");
+  const wrap = document.getElementById("heatmapWrap");
   const map = document.getElementById("heatmapContainer");
   if (bar === null || track === null) return;
-  const visible = map !== null && map.style.display !== "none";
+  const hasBytes = currentRenderer()?.heatmapRenderer?.bytes != null;
+  const visible = wrap !== null && wrap.offsetParent !== null && map !== null
+    && map.style.display !== "none" && hasBytes;
   bar.hidden = !visible;
   if (ticks !== null) ticks.hidden = !visible;
   if (!visible) return;
+  const empty = document.getElementById("mapEmpty");
+  if (empty !== null) empty.hidden = true;
   const contact = key === "contact";
   const min = document.getElementById("mapBarMin");
   const mid = document.getElementById("mapBarMid");
