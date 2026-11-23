@@ -2937,3 +2937,28 @@ html[data-theme="dark"] .viewer-heading { color: var(--ink-muted); }
 }
 #scatterContainer[style*="none"] { display: none !important; }
 #scatterCanvas { display: block; width: 100%; height: auto; }
+
+/* ===========================================================================
+   THE MEASURED DARK PAGE. Three of the last hard-coded surfaces, each with a
+   reason it survived the token sweep above.
+   =========================================================================== */
+
+/* THE CANVAS'S EMPTY-STATE COVER. It was `#151716` in every theme - one of the
+   three darks that used to disagree - and on the light page it put a black
+   rectangle where the structure goes. The cover is a PLACEHOLDER for a picture,
+   so it takes the stage's ground and only the type changes. */
+#canvasContainer::after { background: var(--viewer-bg); color: var(--ink-muted); }
+
+/* THE RESULTS TABS. Written inline by the bundle as `#ffffff` / `#e9e9e9`; the
+   strip sits inside a card, so it takes the surface behind it. */
+.results-tabs [role="tab"][aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--border);
+}
+.results-tabs [role="tab"] { color: var(--ink-muted); }
+
+/* THE STATUS LINE. py2Dmol's own colour is a mid-grey that reads as disabled
+   text on the dark surface. */
+#status-message, #status-line { color: var(--ink); }
+html[data-theme="dark"] #status-message { color: var(--ink); }
