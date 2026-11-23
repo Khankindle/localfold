@@ -2274,8 +2274,14 @@ body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; back
    =========================================================================== */
 @media (min-width: 1100px) {
   html, body { height: 100%; }
+  /* 🔴 BORDER-BOX AND NO MARGIN, OR THE SHELL IS TALLER THAN THE VIEWPORT.
+     `height: 100dvh` with content-box sizing plus 8px of padding made the body
+     736px on a 720px screen, and the browser's own 8px body margin put it at
+     768 - a vertical scrollbar on a page whose whole point is that it does not
+     scroll. */
   body.bg-gray-50 {
     height: 100dvh; min-height: 0; overflow: hidden;
+    margin: 0; box-sizing: border-box;
     padding: 8px 14px !important;
   }
   body.bg-gray-50 > .mx-auto.page-width {
@@ -2514,3 +2520,49 @@ body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; back
   line-height: 1.5;
 }
 .result-empty[hidden] { display: none; }
+
+/* ===========================================================================
+   TOOLBAR LABELS DO NOT WRAP.
+
+   🔴 ROOT CAUSE: `.py2dmol-viewer-instance .btn-toggle>span` is a flex row with
+   `gap: 8px` and no `white-space`, inside a toolbar that gave every button an
+   equal `flex: 1 1 0` share. "Style & colour" wrapped to three lines and "Full
+   screen" to two, so the two-row toolbar was three rows tall in the middle of
+   the viewer's top edge - and the buttons grew to fit the text rather than the
+   text fitting the buttons.
+
+   The name is now just "Style", each tool is one nowrap line with a 36px
+   minimum, and the strip collapses to icons when its own width runs out.
+   =========================================================================== */
+.viewer-toolbar {
+  container-type: inline-size;
+  container-name: viewer-tools;
+}
+.viewer-toolbar .tool {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 36px;
+  white-space: nowrap;
+}
+.viewer-toolbar .tool > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  white-space: nowrap;
+}
+/* BELOW ~560px OF STRIP, THE WORDS GO AND THE ICONS STAY. The accessible name
+   comes from aria-label, which every tool carries for exactly this case; a
+   title alone would leave the button nameless to a screen reader. */
+@container viewer-tools (max-width: 560px) {
+  .viewer-toolbar .tool { min-width: 36px; }
+  .viewer-toolbar .tool .tool-label { display: none; }
+}
+
+/* 🔴 THE STATUS BLOCK IS THE ONE BOX IN THE CENTRE COLUMN THAT STATED A WIDTH
+   AND ALSO CARRIES PADDING. Its earlier rule gives it `width: 100%` with 12px
+   inset padding and the default content-box sizing, so it was its own width
+   plus 34px - measured 923px in an 891px column, 4px past the right edge of
+   the page on every desktop width. */
+#status-col, #status-row { box-sizing: border-box; }
