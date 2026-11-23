@@ -38,7 +38,7 @@ import { generateMmseqs2ComplexMsa, generateMmseqs2Msa, mergeSearchedChains,
   expandSearchedChains, planSearchReuse, searchCacheEntry, singleSequenceA3m }
   from "../shared/input/mmseqs2-api.js";
 import { isAbortError, throwIfAborted } from "../webgpu/runtime/abort.js";
-import { GpuMemoryBudgetError, setMemoryBudget }
+import { GpuMemoryBudgetError, budgetForDevice, setMemoryBudget }
   from "../webgpu/runtime/device-memory.js";
 import { AF3_COUNTS, af3SequenceProblem, alphaCarbons, fittedPdb, foldAf3,
   loadAf3Weights, preloadWebGl2Weights, releaseWebGl2Weights, toPoints, warmAf3Pipelines } from "./af3-model.js";
@@ -1157,6 +1157,51 @@ function describeBudget(error) {
   const mib = (bytes) => `${Math.round(bytes / 1048576)} MiB`;
   return `Needs ${mib(error.residentBytes + error.bytes)}, over this device's`
     + ` ${mib(error.budgetBytes)} limit.`;
+}
+
+// Peak footprints are approximate references from the repository's measured
+// model reports, not advertised VRAM requirements. Browsers expose no API for
+// free GPU memory; navigator.deviceMemory is only a coarse total-system-RAM hint.
+const MODEL_PEAK_ESTIMATE_MIB = Object.freeze({
+  af3: 983, openbind0: 1291, opendde: 1915, boltz2: 1535, protenix2: 1297,
+  intellifold2: 2229, "ef2-fast-600m": 1512,
+});
+function modelMemoryRisk() {
+  const family = chosenFamily();
+  const peakMiB = MODEL_PEAK_ESTIMATE_MIB[family];
+  const budgetBytes = budgetForDevice();
+  const budgetMiB = budgetBytes / (1024 * 1024);
+  const sequenceResidues = [...document.querySelectorAll("#entity-rows textarea.entity-value")]
+    .reduce((sum, field) => sum + (field.value.match(/[A-Za-z]/g)?.length ?? 0), 0);
+  return { family, peakMiB, budgetMiB, sequenceResidues,
+    overBudget: peakMiB !== undefined && peakMiB > budgetMiB,
+    uncertainOnConstrained: peakMiB === undefined && budgetMiB < 1800,
+    longSequence: sequenceResidues > 256 };
+}
+function updateModelMemoryAdvisory() {
+  const node = document.getElementById("model-memory-advisory");
+  if (!node) return;
+  if (new URLSearchParams(location.search).get("backend") === "native") {
+    node.textContent = "Native backend: GPU memory is managed by the local runtime.";
+    node.dataset.level = "info";
+    return;
+  }
+  const risk = modelMemoryRisk();
+  const ramGiB = typeof navigator.deviceMemory === "number" ? navigator.deviceMemory : null;
+  const budget = `${Math.round(risk.budgetMiB)} MiB conservative budget`;
+  if (risk.overBudget) {
+    node.textContent = `Memory risk: benchmark peak ~${risk.peakMiB.toLocaleString()} MiB exceeds this browser's ${budget}. Actual use varies with sequence, alignment and GPU.`;
+    node.dataset.level = "warning";
+  } else if (risk.longSequence) {
+    node.textContent = `Long input: ${risk.sequenceResidues.toLocaleString()} residues. Short-sequence estimates are not reliable at this length; memory use can rise sharply.`;
+    node.dataset.level = "warning";
+  } else if (risk.peakMiB === undefined) {
+    node.textContent = `${risk.uncertainOnConstrained ? "Caution: " : ""}No peak estimate for this model. ${ramGiB === null ? "Browser RAM hint unavailable; " : `Browser RAM hint ${ramGiB} GiB; `}${budget}. Runtime allocation checks remain active.`;
+    node.dataset.level = risk.uncertainOnConstrained ? "warning" : "info";
+  } else {
+    node.textContent = `Benchmark peak ~${risk.peakMiB.toLocaleString()} MiB; ${budget}. Short-chain estimate only; deep alignments and long sequences need more.`;
+    node.dataset.level = "ok";
+  }
 }
 
 /**
@@ -4949,6 +4994,16 @@ async function fold(event) {
     status("Stopping prediction…");
     return;
   }
+  const memoryRisk = modelMemoryRisk();
+  const nativeBackend = new URLSearchParams(location.search).get("backend") === "native";
+  if (!nativeBackend && !ceilingLifted && (memoryRisk.overBudget || memoryRisk.longSequence || memoryRisk.uncertainOnConstrained)) {
+    const estimate = memoryRisk.peakMiB === undefined
+      ? `no reliable peak estimate is available and the conservative browser budget is ${Math.round(memoryRisk.budgetMiB).toLocaleString()} MiB`
+      : `the benchmark peak is about ${memoryRisk.peakMiB.toLocaleString()} MiB against a conservative ${Math.round(memoryRisk.budgetMiB).toLocaleString()} MiB budget`;
+    const length = memoryRisk.longSequence ? ` This input is ${memoryRisk.sequenceResidues.toLocaleString()} residues; long-chain memory rises sharply.` : "";
+    const proceed = window.confirm(`Memory warning: ${estimate}.${length} The browser cannot report free GPU memory; runtime allocation checks still apply. Continue?`);
+    if (!proceed) return;
+  }
   const controller = new AbortController();
   const { signal } = controller;
   activeFold = controller;
@@ -6220,9 +6275,10 @@ if (familySelect !== null) {
   // "everything keyed on a family has to be refreshed here" the comments below
   // already make about the controls.
   familySelect.addEventListener("change", () => {
-    syncModelControls(); syncMode();
+    syncModelControls(); syncMode(); updateModelMemoryAdvisory();
   });
 }
+updateModelMemoryAdvisory();
 // 🔴 AND THE MODEL NUMBER CHANGES THE FAMILY TOO, exactly as the PLM row does -
 // `chosenFamily` folds it into the name, so everything keyed on a family (the
 // weight cache, the download stem, the status line) has to be refreshed here or
@@ -6238,7 +6294,8 @@ document.getElementById("af2Model")?.addEventListener("change", () => {
 document.getElementById("plm-mode")?.addEventListener("change", () => {
   syncModelControls();
   syncAf3Count();
-  syncMode();             // (the variant can grey the MSA row or give it back: what hangs off that row follows)
+  syncMode();
+  updateModelMemoryAdvisory();             // (the variant can grey the MSA row or give it back: what hangs off that row follows)
 });
 // BioEmu2's mode decides whether the propagation row shows, and its source whether the file box does
 for (const id of ["bioemu2-mode", "bioemu2-propagate-from"]) {
@@ -7339,3 +7396,6 @@ document.querySelectorAll("[data-example]").forEach((button) => {
     field.focus();
   });
 });
+
+document.getElementById("entity-rows")?.addEventListener("input", updateModelMemoryAdvisory);
+document.getElementById("max-msa")?.addEventListener("change", updateModelMemoryAdvisory);
