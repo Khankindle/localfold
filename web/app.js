@@ -2195,6 +2195,167 @@ function alignedToFirstPass(sequence, structure, firstPassStructure) {
  * acts while the map is holding the slot - so calling it per frame costs a
  * style read and settles the question for every path at once.
  */
+/* ==========================================================================
+ * THE CANVAS IS A VIEWPORT, AND THIS PAGE OWNS ITS LIFECYCLE.
+ *
+ * 🔴 ROOT CAUSE OF THE BLANK VIEWER: the empty-state cover is a pseudo-element
+ * on #canvasContainer, and the ONLY rule that lifts it is
+ * `#canvasContainer.has-structure::after { display: none }`. That class was
+ * added in exactly one place - revealViewer, which runs on LocalFold's own
+ * fold path. py2Dmol's FILE INGESTION path, which is what the upload box, a
+ * dropped PDB and a restored session all go through, never adds it. Measured:
+ * loading tools/fixtures/1brs-crystal.pdb through #file-upload left the object
+ * parsed (status "1brs-crystal, 195 residues", objectsData populated) with the
+ * cover still up - a dark panel over a drawn structure. The structure was
+ * there and invisible, which is indistinguishable from a blank canvas.
+ *
+ * So the cover stops being a class somebody remembers and becomes a function
+ * of the viewer's own state, asked at every entry point that can change it.
+ *
+ * 🔴 AND THE CANVAS IS SIZED BY AN OBSERVER THAT STARTS BEFORE IT HAS A BOX.
+ * setupViewport measures #canvasContainer at load; while it is inside a
+ * `display: none` ancestor that is 0x0 and it marks the canvas
+ * `__viewportProvisional`, drawing nothing until a resize is seen. Nothing in
+ * this file ever answers that, so any path that reveals the container without
+ * the observer firing leaves a provisionally-sized, undrawn canvas. Our own
+ * observer closes it, and sizes the backing store explicitly rather than
+ * trusting a style write to be noticed.
+ * ========================================================================== */
+
+/** The one renderer this page drives. `viewer` is deliberately undefined mid-run. */
+function currentRenderer() {
+  const registry = window.py2dmol_viewers ?? {};
+  return registry[Object.keys(registry)[0]]?.renderer;
+}
+
+/**
+ * Put the empty-state cover away iff something is actually in the viewer.
+ *
+ * 🔴 READ objectsData, NOT the object picker: the picker is filled by the same
+ * ingestion but is hidden below two objects, so a single fold would look like
+ * nothing happened if the two disagreed.
+ */
+function syncViewerCover(renderer = currentRenderer()) {
+  const box = document.getElementById("canvasContainer");
+  if (box === null) return;
+  const occupied = renderer !== undefined && renderer !== null
+    && Object.keys(renderer.objectsData ?? {}).length > 0;
+  box.classList.toggle("has-structure", occupied);
+}
+
+/**
+ * Size the canvas to its box and draw.
+ *
+ * 🔴 THE BACKING STORE IS SET HERE, NOT ONLY THE CSS. py2Dmol's own observer
+ * does both together (`g()` then `_updateCanvasDimensions()` then render); a
+ * page-level fix that writes only style.width leaves the drawing buffer at its
+ * old size and the picture stretched or absent. The dpr comes from
+ * `window.canvasDPR` when a caller has pinned one, which is the same order
+ * setupViewport uses.
+ *
+ * Idempotent: the comparison means an ordinary resize costs nothing, and a
+ * resize that has already been handled by the vendor's observer does not
+ * redraw twice.
+ */
+function primeCanvas(reason) {
+  const renderer = currentRenderer();
+  const box = document.getElementById("canvasContainer");
+  const canvas = document.getElementById("canvas");
+  if (renderer === undefined || box === null || canvas === null) return;
+  const rect = box.getBoundingClientRect();
+  // 🔴 A HIDDEN BOX IS NOT A REASON TO DRAW. Sizing to zero is how a
+  // provisional canvas becomes a permanent one.
+  if (!(rect.width >= 1) || !(rect.height >= 1)) return;
+  const dpr = Number(window.canvasDPR) || window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+  const targetWidth = Math.round(width * dpr);
+  const targetHeight = Math.round(height * dpr);
+  if (Math.abs(canvas.width - targetWidth) > 1 || Math.abs(canvas.height - targetHeight) > 1) {
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  }
+  try { renderer._updateCanvasDimensions?.(); } catch { /* best effort */ }
+  try { renderer.render?.(reason); } catch { /* a lost context throws here */ }
+  syncViewerCover(renderer);
+}
+
+/** The small "the graphics context went away" notice, and its recovery. */
+function showViewerLost() {
+  let notice = document.getElementById("viewer-lost");
+  if (notice === null) {
+    notice = document.createElement("div");
+    notice.id = "viewer-lost";
+    const text = document.createElement("p");
+    text.textContent = "Viewer lost";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn btn-secondary btn-small";
+    button.textContent = "Reload";
+    // 🔴 location.reload(), because a restored WebGL context is not a restored
+    // drawing: the buffers, textures and cached segment indices belong to the
+    // context that died. Everything else on the page survives it.
+    button.addEventListener("click", () => window.location.reload());
+    notice.append(text, button);
+    document.getElementById("canvasContainer")?.appendChild(notice);
+  }
+  notice.hidden = false;
+}
+
+/**
+ * Watch the canvas for the three ways it goes blank without an error.
+ *
+ * 🔴 webglcontextlost IS NOT RECOVERED BY RENDERING AGAIN. The default is for
+ * the browser to discard the context; a render on a dead context is a no-op
+ * that looks exactly like "nothing drew". preventDefault is what makes
+ * `webglcontextrestored` fire at all, and the notice is what tells the reader
+ * which of the two happened.
+ */
+function installCanvasWatch() {
+  if (window.__localfoldCanvasWatchInstalled === true) return;
+  window.__localfoldCanvasWatchInstalled = true;
+  const box = document.getElementById("canvasContainer");
+  const canvas = document.getElementById("canvas");
+  if (box !== null && window.ResizeObserver !== undefined) {
+    new ResizeObserver(() => primeCanvas("localfold.resize")).observe(box);
+  }
+  if (canvas !== null) {
+    canvas.addEventListener("webglcontextlost", (event) => {
+      event.preventDefault();
+      showViewerLost();
+    });
+    canvas.addEventListener("webglcontextrestored", () => {
+      const notice = document.getElementById("viewer-lost");
+      if (notice !== null) notice.hidden = true;
+      primeCanvas("localfold.context-restored");
+    });
+  }
+  // FULL SCREEN MOVES THE BOX WITHOUT CHANGING THE PAGE. The vendor's own
+  // fullscreen helper toggles a class on the whole instance; this is the half
+  // that re-measures afterwards, on the frame where the new box exists.
+  document.addEventListener("fullscreenchange", () => {
+    requestAnimationFrame(() => primeCanvas("localfold.fullscreen"));
+  });
+  // A COLOUR CHANGE IS A REDRAW ORDER, AND py2dmol DISPATCHES ONE.
+  document.addEventListener("py2dmol-color-change", () => primeCanvas("localfold.color"));
+  // ...and every ingestion goes out through this one function, whatever opened
+  // it - the upload box, a drop, a session. Wrapping it rather than each call
+  // site is what makes the cover agree with the viewer.
+  const ingest = window.py2dmolLoadFiles;
+  if (typeof ingest === "function") {
+    window.py2dmolLoadFiles = async function (...args) {
+      const result = await ingest.apply(this, args);
+      primeCanvas("localfold.ingest");
+      return result;
+    };
+  }
+  syncViewerCover();
+}
+
+installCanvasWatch();
+
 function foldIsShowing(renderer) {
   if (renderer === undefined || renderer === null) return;
   revealViewer(renderer);
