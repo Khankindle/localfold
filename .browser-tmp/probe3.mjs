@@ -23,13 +23,13 @@ if (process.env.PDB) {
   await new Promise((r) => setTimeout(r, Number(process.env.WAIT2 || 5000)));
 }
 
-const ids = (process.env.IDS || [
+const ids = ((process.env.IDS ? process.env.IDS.split(",") : [
   "#viewer-container", "#mainContainer", "#viewerColumn", "#canvasContainer",
   "#canvas", "#controlsContainer", "#rightPanelsContainer", "#rightPanelContainer",
   "#navigationControls", "#heatmapContainer", "#plddtContainer",
   "#predictionScoresBox", "#downloads", "#sequence-viewer-container",
   "#status-row", "#fold-panel", "#objectRow", "#styleAppearanceContainer",
-]).join(",");
+]) ).join(",");
 
 const info = await page.evaluate((sel) => {
   const out = {};

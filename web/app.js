@@ -2356,6 +2356,115 @@ function installCanvasWatch() {
 
 installCanvasWatch();
 
+/* ==========================================================================
+ * THE CENTRE PANE IS THE STRUCTURE, AND THE RESULTS HAVE ONE TAB SET.
+ *
+ * 🔴 ROOT CAUSE OF THE DUPLICATED CONTROLS: py2Dmol's slot layer wraps
+ * `#canvasContainer`, `#plddtContainer` and `#heatmapContainer` in
+ * `.py2dmol-slot` boxes, each with a tab strip of its own, and the heatmap
+ * renderer adds ANOTHER strip for PAE/contact inside the panel - absolutely
+ * positioned, 22px tall, painted above the box it belongs to. So one picture
+ * was reachable three ways, and the structure shared its pane with tabs that
+ * moved it into a box beside a map.
+ *
+ * Dropping `window.py2dmolSlots` before initialization is the whole fix: the
+ * bundle guards both uses (`window.py2dmolSlots?.prepare`, `a && bind`) and
+ * nothing else reads it. The elements stay where this file puts them, which is
+ * what lets the Results column own the single tab strip below.
+ *
+ * 🔴 WHAT IT COSTS, SAID PLAINLY: `setSlots` is how a fold's trunk contact map
+ * used to take the BIG slot while the structure was still absent. Without the
+ * slot layer there is no big/small - the map lives in the Contact tab and the
+ * structure owns the centre pane, which is the arrangement asked for. The
+ * contact map is still drawn at every recycle (showTrunkContacts).
+ * ========================================================================== */
+delete window.py2dmolSlots;
+
+/** The Results column's four tabs and the page each one shows. */
+const RESULT_PAGES = {
+  summary: "result-page-summary",
+  plddt: "result-page-plddt",
+  pae: "result-page-map",
+  contact: "result-page-map",
+};
+
+let resultsTabsWired = false;
+
+/**
+ * Show one page of the Results column.
+ *
+ * 🔴 THE SCORES ARE NOT A PAGE. They sit above the tabs and stay put: they are
+ * the headline number for whichever map is up, and hiding them on the PAE tab
+ * would hide the one thing a reader opened the tab to read against.
+ *
+ * 🔴 AND PAE/CONTACT PIN THE MAP THROUGH THE RENDERER, NOT through a second tab
+ * strip. `heatmapRenderer.pin(key)` is the supported selector; the panel's own
+ * strip is hidden in the sheet so there is exactly one answer to "which map".
+ */
+function selectResultsTab(name) {
+  const tabs = document.getElementById("results-tabs");
+  if (tabs === null || RESULT_PAGES[name] === undefined) return;
+  const selected = [];
+  for (const tab of tabs.querySelectorAll('[role="tab"]')) {
+    const on = tab.dataset.resultsTab === name;
+    tab.setAttribute("aria-selected", String(on));
+    tab.tabIndex = on ? 0 : -1;
+    if (on) selected.push(tab);
+  }
+  // Two tab names share one page, so a page is shown when its key maps to the
+  // same element as the chosen one - not when the strings match.
+  for (const [key, id] of Object.entries(RESULT_PAGES)) {
+    const page = document.getElementById(id);
+    if (page !== null) page.hidden = RESULT_PAGES[key] !== RESULT_PAGES[name];
+  }
+  const mapPage = document.getElementById("result-page-map");
+  const map = document.getElementById("heatmapContainer");
+  if (name === "pae" || name === "contact") {
+    const renderer = currentRenderer();
+    try {
+      renderer?.heatmapRenderer?.pin?.(name);
+      window.Heatmap?.updateVisibility?.(renderer);
+      // A map that exists draws; a prediction whose maps have not arrived yet
+      // says so rather than showing an empty square.
+      const hasMap = map !== null && map.style.display !== "none";
+      const empty = document.getElementById("mapEmpty");
+      if (empty !== null) empty.hidden = hasMap;
+    } catch { /* the panel is optional */ }
+  } else if (mapPage !== null && map !== null) {
+    const empty = document.getElementById("mapEmpty");
+    if (empty !== null) empty.hidden = true;
+  }
+}
+
+function installResultsTabs() {
+  if (resultsTabsWired) return;
+  resultsTabsWired = true;
+  const tabs = document.getElementById("results-tabs");
+  if (tabs === null) return;
+  tabs.addEventListener("click", (event) => {
+    const tab = event.target.closest?.('[role="tab"]');
+    if (tab !== null && tab !== undefined) selectResultsTab(tab.dataset.resultsTab);
+  });
+  // Roving tabindex, and the arrows a tablist is expected to answer.
+  tabs.addEventListener("keydown", (event) => {
+    const order = ["summary", "plddt", "pae", "contact"];
+    const current = tabs.querySelector('[role="tab"][aria-selected="true"]');
+    const index = order.indexOf(current?.dataset.resultsTab);
+    let next = null;
+    if (event.key === "ArrowRight") next = order[(index + 1) % order.length];
+    else if (event.key === "ArrowLeft") next = order[(index - 1 + order.length) % order.length];
+    else if (event.key === "Home") next = order[0];
+    else if (event.key === "End") next = order[order.length - 1];
+    if (next === null) return;
+    event.preventDefault();
+    selectResultsTab(next);
+    tabs.querySelector(`[data-results-tab="${next}"]`)?.focus({ preventScroll: true });
+  });
+  selectResultsTab("summary");
+}
+
+installResultsTabs();
+
 function foldIsShowing(renderer) {
   if (renderer === undefined || renderer === null) return;
   revealViewer(renderer);
