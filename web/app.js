@@ -7655,8 +7655,15 @@ document.addEventListener("fullscreenchange", () => {
   if (fullscreenButton === null) return;
   const active = document.fullscreenElement === document.getElementById("viewer-container");
   fullscreenButton.setAttribute("aria-pressed", String(active));
-  const label = fullscreenButton.querySelector("span");
-  if (label) label.innerHTML = `<i class="fa-solid fa-${active ? "compress" : "expand"}"></i>${active ? "Exit full screen" : "Full screen"}`;
+  // 🔴 CHANGE THE ICON AND THE WORD, NOT THE WHOLE SPAN. This used to write
+  // innerHTML over the button's <span>, which deleted the .tool-label element
+  // the narrow-toolbar rule hides - so after one full-screen round trip the
+  // label came back as bare text at every width, including the collapsed
+  // icon-only strip.
+  const icon = fullscreenButton.querySelector("i");
+  if (icon !== null) icon.className = `fa-solid fa-${active ? "compress" : "expand"}`;
+  const label = fullscreenButton.querySelector(".tool-label");
+  if (label !== null) label.textContent = active ? "Exit full screen" : "Full screen";
 });
 
 const advancedToggle = document.getElementById("advanced-toggle");
