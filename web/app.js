@@ -7802,20 +7802,35 @@ function updateMapScaleUI(key) {
   track.style.background = `linear-gradient(90deg, ${stops.join(", ")})`;
 }
 
-/** Put the themed ramp on the live heatmap renderer and make it redraw. */
-function themeHeatmap() {
-  const renderer = currentRenderer();
-  const heatmap = renderer?.heatmapRenderer;
-  if (heatmap === undefined || heatmap === null) return;
-  try {
-    const key = heatmap.mapKey ?? "pae";
-    heatmap.scale = { ...(heatmap.scale ?? {}), ramp: themedRamp(key) };
-    // The renderer caches the quantised picture against a signature of the
-    // scale, so a new ramp has to invalidate it or nothing repaints.
+/**
+ * Put the themed ramp on the live heatmap and make it redraw.
+ *
+ * 🔴 THERE IS NO HOOK TO REACH THE RENDERER WITH. The renderer caches its
+ * quantised picture against a signature that includes the colour mode, the
+ * colourblind flag and vmin/vmax - but NOT the ramp - and `colorChangeHandler`
+ * only listens for `py2dmol-color-change`. The class's own `setMaps` has no
+ * public entry either (`setData`/`setMaps` are prototype methods the wrapper
+ * never exposes). So this re-dispatches the event the handler already listens
+ * for after swapping the ramp; it rebuilds the base image from the SAME bytes,
+ * so nothing about the matrix changes except its colours.
+ */
+function retintHeatmap(heatmap, key, force) {
+  heatmap.scale = { ...(heatmap.scale ?? {}), ramp: themedRamp(key) };
+  if (heatmap.bytes !== null && heatmap.bytes !== undefined) {
     heatmap._scaleSig = null;
     heatmap.baseCanvas = null;
     heatmap.scheduleRender?.();
-    updateMapScaleUI(key);
+    if (force === true) heatmap.colorChangeHandler?.();
+  }
+}
+
+/** Put the themed ramp on the live heatmap renderer. */
+function themeHeatmap() {
+  const heatmap = currentRenderer()?.heatmapRenderer;
+  if (heatmap === undefined || heatmap === null) return;
+  try {
+    retintHeatmap(heatmap, heatmap.mapKey ?? "pae", true);
+    updateMapScaleUI(heatmap.mapKey ?? "pae");
   } catch { /* the panel is optional */ }
 }
 
@@ -7828,17 +7843,11 @@ function installHeatmapTheming() {
     const original = api.updateFrame;
     api.updateFrame = function (renderer, object, frameIndex) {
       const result = original.apply(this, arguments);
-      try {
-        const heatmap = renderer?.heatmapRenderer;
-        if (heatmap !== undefined && heatmap !== null) {
-          const key = heatmap.mapKey ?? "pae";
-          heatmap.scale = { ...(heatmap.scale ?? {}), ramp: themedRamp(key) };
-          heatmap._scaleSig = null;
-          heatmap.baseCanvas = null;
-          heatmap.scheduleRender?.();
-          updateMapScaleUI(key);
-        }
-      } catch { /* the panel is optional */ }
+      const heatmap = renderer?.heatmapRenderer;
+      if (heatmap !== undefined && heatmap !== null) {
+        retintHeatmap(heatmap, heatmap.mapKey ?? "pae", false);
+        updateMapScaleUI(heatmap.mapKey ?? "pae");
+      }
       return result;
     };
   }
