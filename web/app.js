@@ -1762,6 +1762,12 @@ async function alignmentText(chains, signal, family, wantsMsa = []) {
  * hydrophobicity, plus anything in `window.py2dmol_customColors`.
  */
 function setColourMode(mode) {
+  // 🔴 THE NAME ASKED FOR IS pLDDT, AND THE NAME THAT DRAWS THE BINS IS OURS.
+  // Every caller in this file asks for "plddt"; the rainbow it used to get is
+  // not what any of them meant.
+  if (mode === "plddt" && window.py2dmol_customColors?.localfold !== undefined) {
+    mode = "localfold";
+  }
   const registry = window.py2dmol_viewers ?? {};
   const renderer = registry[Object.keys(registry)[0]]?.renderer;
   // 🔴 THROUGH py2Dmol's OWN SELECT FIRST, because that keeps the dropdown the
@@ -7606,25 +7612,275 @@ document.addEventListener("localfold-runtime-stopped", (event) => {
   retireFolding(event.detail?.why ?? "the fold service has been stopped");
 });
 
-// Lightweight presentation controls for the workspace header. They only
-// affect navigation and theme; prediction/viewer control wiring is untouched.
-const themeToggle = document.getElementById("theme-toggle");
-if (themeToggle !== null) {
-  try {
-    if (localStorage.getItem("localfold-theme") === "dark") {
-      document.body.classList.add("lf-dark");
-      themeToggle.setAttribute("aria-pressed", "true");
-      themeToggle.textContent = "Light";
-    }
-  } catch { /* private browsing can disable storage; the control still works */ }
-  themeToggle.addEventListener("click", () => {
-    const dark = document.body.classList.toggle("lf-dark");
-    themeToggle.setAttribute("aria-pressed", String(dark));
-    themeToggle.textContent = dark ? "Light" : "Dark";
+/* ==========================================================================
+ * THE THEME IS AN ATTRIBUTE ON <html>, AND CHANGING IT CHANGES COLOURS ONLY.
+ *
+ * 🔴 ROOT CAUSE: the old toggle added and removed `body.lf-dark` from a click
+ * handler in this module, so it ran after first paint (a cream flash on every
+ * load for a dark-mode reader), and its label was the word "Dark"/"Light" -
+ * two names for one state, at the width of the longer.
+ *
+ * The attribute is set pre-paint by the inline script in index.html from
+ * localStorage or prefers-color-scheme. Everything else - the stylesheet, the
+ * viewer's clear colour, the heatmap ramp - reads the same attribute, so there
+ * is one source of truth and no class to keep in step.
+ *
+ * 🔴 AND THE TOGGLE MUST NOT TOUCH THE APP. It changes data-theme, the
+ * renderer's background, the cartoon's specular level and the map ramp - all
+ * presentation. It never re-renders the page, never clears results and never
+ * resets the selected model, which the old class-based rules could not have
+ * guaranteed because they were spread across forty-seven selectors.
+ * ========================================================================== */
+
+/** The theme as the page sees it. */
+function isDarkTheme() {
+  return document.documentElement.dataset.theme === "dark";
+}
+
+/** The viewer's clear colour, from the same token the sheet uses. */
+function viewerBackground() {
+  return isDarkTheme() ? "#1a1916" : "#ffffff";
+}
+
+/**
+ * One place that knows how each canvas follows the theme.
+ *
+ * 🔴 `renderer.backgroundColor` IS INLINE ON THE CANVAS (`canvas.style.background`),
+ * so it beats any stylesheet rule - setting only a CSS variable would leave the
+ * picture on white in dark mode.
+ */
+function applyTheme(dark, { persist = true } = {}) {
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  const toggle = document.getElementById("theme-toggle");
+  if (toggle !== null) {
+    toggle.setAttribute("aria-pressed", String(dark));
+    toggle.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+    const icon = toggle.querySelector("i");
+    if (icon !== null) icon.className = `fa-solid fa-${dark ? "sun" : "moon"}`;
+  }
+  if (persist) {
     try { localStorage.setItem("localfold-theme", dark ? "dark" : "light"); }
     catch { /* session-only theme is still useful */ }
-  });
+  }
+  // THE VIEWER. Background first, then a redraw: the clear colour is read when
+  // the next frame is drawn, so a resize/render pass has to follow it.
+  const renderer = currentRenderer();
+  if (renderer !== undefined) {
+    try {
+      renderer.backgroundColor = viewerBackground();
+      if (renderer.canvas !== undefined && renderer.canvas !== null) {
+        renderer.canvas.style.background = viewerBackground();
+      }
+      // 🔴 THE WHITE STREAKS ARE SPECULAR HIGHLIGHT ON THE CARTOON, and they
+      // read as glare on a near-black stage. Dark mode caps it; the reader's own
+      // value is remembered and handed back in light mode rather than lost.
+      if (dark) {
+        if (renderer._lfHighlight === undefined) renderer._lfHighlight = renderer.cartoonHighlight;
+        renderer.cartoonHighlight = Math.min(renderer.cartoonHighlight ?? 1, 0.35);
+      } else if (renderer._lfHighlight !== undefined) {
+        renderer.cartoonHighlight = renderer._lfHighlight;
+        delete renderer._lfHighlight;
+      }
+      renderer.cachedShadows = null;
+    } catch { /* a missing field is not worth losing the theme over */ }
+  }
+  primeCanvas("theme");
+  themeHeatmap();
+  if (renderer !== undefined) try { renderer.render?.("theme"); } catch { /* optional */ }
 }
+
+const themeToggle = document.getElementById("theme-toggle");
+themeToggle?.addEventListener("click", () => applyTheme(!isDarkTheme()));
+
+/* THE pLDDT BINS, FROM TOKENS.
+ * 🔴 `plddt` ON THIS BUILD IS A RAINBOW OVER 50-90, NOT the four bins readers
+ * expect, and the very-high blue it uses is dark enough to disappear on the
+ * dark stage. Registering a mode is the supported extension point - it goes into
+ * getAllValidColorModes(), so py2Dmol's own select accepts it - and mapping the
+ * one name here means every caller that asks for pLDDT gets the bins. */
+if (window.py2dmol_customColors !== undefined
+    && window.py2dmol_customColors.localfold === undefined) {
+  window.py2dmol_customColors.localfold = (value) => {
+    const score = Number(value);
+    if (!Number.isFinite(score)) return { r: 128, g: 128, b: 128 };
+    if (score >= 90) return isDarkTheme()
+      ? { r: 61, g: 130, b: 242 }   // #3d82f2 - bright enough on #1a1916
+      : { r: 13, g: 87, b: 211 };
+    if (score >= 70) return { r: 101, g: 203, b: 243 };  // #65cbf3
+    if (score >= 50) return { r: 255, g: 219, b: 19 };   // #ffdb13
+    return { r: 255, g: 125, b: 69 };                    // #ff7d45
+  };
+}
+
+/* ==========================================================================
+ * THE MAPS FOLLOW THE TOKENS TOO.
+ *
+ * 🔴 ROOT CAUSE OF THE GLARE: py2Dmol's PAE ramp is blue -> WHITE -> red,
+ * hard-coded in the bundle, so the middle of every matrix is pure white; the
+ * contact ramp starts at white as well. On the near-black stage both read as a
+ * lit panel. A heatmap's scale is `{vmin, vmax, ramp}` and `ramp` is replaced
+ * whenever a map is loaded, so this sets it - and says what the colours mean.
+ * ========================================================================== */
+
+/** Hex -> {r,g,b}; the vendor's own converter is not exposed. */
+function hexRgb(hex) {
+  const text = String(hex).replace("#", "");
+  const full = text.length === 3
+    ? text.split("").map((c) => c + c).join("")
+    : text;
+  const value = Number.parseInt(full, 16);
+  return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+}
+
+/** A piecewise-linear ramp through token-anchored stops. */
+function rampThrough(stops) {
+  return (value) => {
+    const t = Math.max(0, Math.min(1, Number(value) || 0));
+    let lower = stops[0];
+    let upper = stops[stops.length - 1];
+    for (let index = 0; index < stops.length - 1; index += 1) {
+      if (t >= stops[index][0] && t <= stops[index + 1][0]) {
+        lower = stops[index];
+        upper = stops[index + 1];
+        break;
+      }
+    }
+    const span = upper[0] - lower[0] || 1;
+    const mix = (t - lower[0]) / span;
+    const from = hexRgb(lower[1]);
+    const to = hexRgb(upper[1]);
+    return {
+      r: Math.round(from.r + (to.r - from.r) * mix),
+      g: Math.round(from.g + (to.g - from.g) * mix),
+      b: Math.round(from.b + (to.b - from.b) * mix),
+    };
+  };
+}
+
+/**
+ * The two ramps, expressed in tokens.
+ *
+ * PAE is 0..30 Å: cobalt to brick in light, bright blue to hot orange in dark -
+ * with a violet rather than a white midpoint, because a white midpoint is the
+ * glare being fixed. Contact is 0..1 and simply runs surface to accent.
+ */
+function themedRamp(key) {
+  const dark = isDarkTheme();
+  if (key === "contact") {
+    return rampThrough(dark
+      ? [[0, "#24221e"], [1, "#f08a72"]]
+      : [[0, "#f4f2ec"], [1, "#c2452d"]]);
+  }
+  return rampThrough(dark
+    ? [[0, "#3d82f2"], [0.5, "#8a6fd1"], [1, "#e0703a"]]
+    : [[0, "#3d55bd"], [0.5, "#f2f0ea"], [1, "#c2452d"]]);
+}
+
+/** The colour bar under the map: the same stops, as a gradient and as words. */
+function updateMapScaleUI(key) {
+  const bar = document.getElementById("mapColourBar");
+  const ticks = document.getElementById("mapBarTicks");
+  const track = document.getElementById("mapBarTrack");
+  const map = document.getElementById("heatmapContainer");
+  if (bar === null || track === null) return;
+  const visible = map !== null && map.style.display !== "none";
+  bar.hidden = !visible;
+  if (ticks !== null) ticks.hidden = !visible;
+  if (!visible) return;
+  const contact = key === "contact";
+  const min = document.getElementById("mapBarMin");
+  const mid = document.getElementById("mapBarMid");
+  const max = document.getElementById("mapBarMax");
+  if (min !== null) min.textContent = contact ? "0" : "0 Å";
+  if (mid !== null) mid.textContent = contact ? "0.5" : "15";
+  if (max !== null) max.textContent = contact ? "1" : "30 Å";
+  const stops = contact
+    ? (isDarkTheme() ? ["#24221e", "#f08a72"] : ["#f4f2ec", "#c2452d"])
+    : (isDarkTheme()
+      ? ["#3d82f2", "#8a6fd1", "#e0703a"]
+      : ["#3d55bd", "#f2f0ea", "#c2452d"]);
+  track.style.background = `linear-gradient(90deg, ${stops.join(", ")})`;
+}
+
+/** Put the themed ramp on the live heatmap renderer and make it redraw. */
+function themeHeatmap() {
+  const renderer = currentRenderer();
+  const heatmap = renderer?.heatmapRenderer;
+  if (heatmap === undefined || heatmap === null) return;
+  try {
+    const key = heatmap.mapKey ?? "pae";
+    heatmap.scale = { ...(heatmap.scale ?? {}), ramp: themedRamp(key) };
+    // The renderer caches the quantised picture against a signature of the
+    // scale, so a new ramp has to invalidate it or nothing repaints.
+    heatmap._scaleSig = null;
+    heatmap.baseCanvas = null;
+    heatmap.scheduleRender?.();
+    updateMapScaleUI(key);
+  } catch { /* the panel is optional */ }
+}
+
+/** Re-theme the map whenever it is told about a frame. */
+function installHeatmapTheming() {
+  if (window.__localfoldHeatmapThemed === true) return;
+  window.__localfoldHeatmapThemed = true;
+  const api = window.Heatmap;
+  if (api !== undefined && typeof api.updateFrame === "function") {
+    const original = api.updateFrame;
+    api.updateFrame = function (renderer, object, frameIndex) {
+      const result = original.apply(this, arguments);
+      try {
+        const heatmap = renderer?.heatmapRenderer;
+        if (heatmap !== undefined && heatmap !== null) {
+          const key = heatmap.mapKey ?? "pae";
+          heatmap.scale = { ...(heatmap.scale ?? {}), ramp: themedRamp(key) };
+          heatmap._scaleSig = null;
+          heatmap.baseCanvas = null;
+          heatmap.scheduleRender?.();
+          updateMapScaleUI(key);
+        }
+      } catch { /* the panel is optional */ }
+      return result;
+    };
+  }
+  const canvas = document.getElementById("heatmapCanvas");
+  const tip = document.getElementById("mapTooltip");
+  if (canvas !== null && tip !== null) {
+    canvas.addEventListener("mousemove", (event) => {
+      const heatmap = currentRenderer()?.heatmapRenderer;
+      if (heatmap === undefined || heatmap === null || !heatmap.bytes || !heatmap.n) {
+        tip.hidden = true;
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor(((event.clientX - rect.left) / rect.width) * heatmap.n);
+      const y = Math.floor(((event.clientY - rect.top) / rect.height) * heatmap.n);
+      if (x < 0 || y < 0 || x >= heatmap.n || y >= heatmap.n) {
+        tip.hidden = true;
+        return;
+      }
+      const scale = heatmap.scale ?? {};
+      const low = Number(scale.vmin) || 0;
+      const high = Number(scale.vmax) || 1;
+      const value = low + (heatmap.bytes[(y * heatmap.n) + x] / 255) * (high - low);
+      const contact = heatmap.mapKey === "contact";
+      tip.textContent = `scored ${x + 1} / aligned ${y + 1}: `
+        + `${value.toFixed(contact ? 2 : 1)}${contact ? "" : " Å"}`;
+      tip.style.left = `${event.clientX - rect.left + 12}px`;
+      tip.style.top = `${event.clientY - rect.top + 12}px`;
+      tip.hidden = false;
+    });
+    canvas.addEventListener("mouseleave", () => { tip.hidden = true; });
+  }
+}
+
+installHeatmapTheming();
+
+/* The attribute was set before first paint; bring the header control and the
+   canvases in line with it now, and again once the viewer exists (it is built
+   on DOMContentLoaded, after this module runs). */
+applyTheme(isDarkTheme(), { persist: false });
+document.addEventListener("DOMContentLoaded", () => applyTheme(isDarkTheme(), { persist: false }));
+
 // 🔴 NO scrollIntoView ANY MORE. It moved the VIEWPORT to the model row -
 // the one navigation on the page that did, and on the desktop shell there is
 // no viewport scroll to do: the rail scrolls itself if the row is out of view,

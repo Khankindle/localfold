@@ -2012,25 +2012,25 @@ footer { grid-column: 1 / -1; }
 }
 
 /* Dark mode is an optional workspace theme, not a second application. */
-body.lf-dark { background: #111815 !important; color: #e4ece7 !important; }
-body.lf-dark .container-box,
-body.lf-dark #status-row { background: #1b2520 !important; border-color: #35453c !important; color: #e4ece7; }
-body.lf-dark #fold-panel, body.lf-dark #upload-options-container { background: #1b2520 !important; }
-body.lf-dark #sequence, body.lf-dark #target,
-body.lf-dark input, body.lf-dark textarea, body.lf-dark select {
+html[data-theme="dark"] { background: #111815 !important; color: #e4ece7 !important; }
+html[data-theme="dark"] .container-box,
+html[data-theme="dark"] #status-row { background: #1b2520 !important; border-color: #35453c !important; color: #e4ece7; }
+html[data-theme="dark"] #fold-panel, html[data-theme="dark"] #upload-options-container { background: #1b2520 !important; }
+html[data-theme="dark"] #sequence, html[data-theme="dark"] #target,
+html[data-theme="dark"] input, html[data-theme="dark"] textarea, html[data-theme="dark"] select {
   color: #e4ece7 !important; background-color: #121a16 !important; border-color: #43564a !important;
 }
-body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) {
+html[data-theme="dark"] button:not(.btn-primary), html[data-theme="dark"] .btn:not(.btn-primary) {
   color: #dce8e0; background-color: #25332b; border-color: #43564a;
 }
-body.lf-dark .page-head-fold { border-color: #35453c; }
-body.lf-dark .page-head-fold h1 { color: #9ed2b5; }
-body.lf-dark #status-line, body.lf-dark .fetch-option-title { color: #a8b8ae; }
-body.lf-dark #canvasContainer { border-color: #35453c; }
-body.lf-dark #canvasContainer::after { background: #101713; }
-body.lf-dark footer { color: #a8b8ae; border-color: #35453c; }
+html[data-theme="dark"] .page-head-fold { border-color: #35453c; }
+html[data-theme="dark"] .page-head-fold h1 { color: #9ed2b5; }
+html[data-theme="dark"] #status-line, html[data-theme="dark"] .fetch-option-title { color: #a8b8ae; }
+html[data-theme="dark"] #canvasContainer { border-color: #35453c; }
+html[data-theme="dark"] #canvasContainer::after { background: #101713; }
+html[data-theme="dark"] footer { color: #a8b8ae; border-color: #35453c; }
 .workspace-tagline { margin: 0 auto 0 14px; color: var(--lf-muted); font-size: 15px; }
-body.lf-dark .workspace-tagline { color: #a8b8ae; }
+html[data-theme="dark"] .workspace-tagline { color: #a8b8ae; }
 /* FULL SCREEN IS THE VIEWER'S OWN BOX, NOT THE PAGE. The rule is outside the
    media query because it has to hold at every width: :fullscreen already takes
    the element out of flow and sizes it to the viewport, so this states the
@@ -2042,7 +2042,7 @@ body.lf-dark .workspace-tagline { color: #a8b8ae; }
   margin: 0; padding: 10px 12px; overflow: hidden;
   background: var(--lf-paper); box-sizing: border-box;
 }
-body.lf-dark #viewer-container:fullscreen { background: var(--lf-paper); }
+html[data-theme="dark"] #viewer-container:fullscreen { background: var(--lf-paper); }
 #viewer-container:fullscreen #mainContainer { height: 100%; min-height: 0; }
 #viewer-container:fullscreen #viewerColumn {
   position: relative; height: 100%; min-height: 0;
@@ -2086,23 +2086,23 @@ body.bg-gray-50 { background: var(--lf-paper); color: var(--lf-ink); }
 .confidence-section > .eyebrow { margin: 8px 2px; }
 #viewer-container #rightPanelContainer { background: transparent; border: 0; padding: 0; box-shadow: none; }
 #viewer-container #canvasContainer { border-color: #252a31; }
-body.lf-dark {
+html[data-theme="dark"] {
   --lf-paper: #14161a; --lf-ink: #e8e9ed; --lf-muted: #a4a7b0; --lf-line: #30343c;
   background: #14161a !important; color: #e8e9ed !important;
 }
-body.lf-dark .container-box, body.lf-dark #status-row,
-body.lf-dark #fold-panel, body.lf-dark #upload-options-container { background: #1d2026 !important; border-color: #343840 !important; color: #e8e9ed; }
-body.lf-dark .page-head-fold { border-color: #343840; }
-body.lf-dark .page-head-fold h1, body.lf-dark .panel-intro h2, body.lf-dark .results-heading h2 { color: #f0f1f4; }
-body.lf-dark .page-head-fold h1::after { background: repeating-linear-gradient(135deg, transparent 0 5px, #818795 5px 7px, transparent 7px 12px); }
-body.lf-dark input, body.lf-dark textarea, body.lf-dark select { background: #15171c !important; color: #e8e9ed !important; border-color: #444953 !important; }
-body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) { background: #252932; color: #e4e5e9; border-color: #444953; }
-body.lf-dark .panel-intro p, body.lf-dark .workspace-tagline, body.lf-dark .viewer-heading { color: #a4a7b0; }
-body.lf-dark .eyebrow { color: #a4a7b0; }
-body.lf-dark #status-line { color: #c5c8cf; }
+html[data-theme="dark"] .container-box, html[data-theme="dark"] #status-row,
+html[data-theme="dark"] #fold-panel, html[data-theme="dark"] #upload-options-container { background: #1d2026 !important; border-color: #343840 !important; color: #e8e9ed; }
+html[data-theme="dark"] .page-head-fold { border-color: #343840; }
+html[data-theme="dark"] .page-head-fold h1, html[data-theme="dark"] .panel-intro h2, html[data-theme="dark"] .results-heading h2 { color: #f0f1f4; }
+html[data-theme="dark"] .page-head-fold h1::after { background: repeating-linear-gradient(135deg, transparent 0 5px, #818795 5px 7px, transparent 7px 12px); }
+html[data-theme="dark"] input, html[data-theme="dark"] textarea, html[data-theme="dark"] select { background: #15171c !important; color: #e8e9ed !important; border-color: #444953 !important; }
+html[data-theme="dark"] button:not(.btn-primary), html[data-theme="dark"] .btn:not(.btn-primary) { background: #252932; color: #e4e5e9; border-color: #444953; }
+html[data-theme="dark"] .panel-intro p, html[data-theme="dark"] .workspace-tagline, html[data-theme="dark"] .viewer-heading { color: #a4a7b0; }
+html[data-theme="dark"] .eyebrow { color: #a4a7b0; }
+html[data-theme="dark"] #status-line { color: #c5c8cf; }
 /* Token-driven: the full-screen box is the viewer's paper, whichever theme
    is up. The three stacked hard-coded dark values disagreed. */
-body.lf-dark #viewer-container:fullscreen { background: var(--lf-paper); }
+html[data-theme="dark"] #viewer-container:fullscreen { background: var(--lf-paper); }
 @media (max-width: 760px) {
   .viewer-heading { min-height: 25px; }
   #downloads[style*="flex"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2126,9 +2126,9 @@ body.lf-dark #viewer-container:fullscreen { background: var(--lf-paper); }
   color: #424955; background: #f6f6f7; font: inherit; font-size: 11px; font-weight: 500; line-height: 1.2; cursor: pointer;
 }
 .example-chip:hover { border-color: #8795d4; color: #354cac; background: #f1f3ff; }
-body.lf-dark .advanced-toggle { border-color: #343840; }
-body.lf-dark .example-chip { background: #252932; border-color: #444953; color: #e4e5e9; }
-body.lf-dark .example-chip:hover { border-color: #8999ee; color: #cbd3ff; }
+html[data-theme="dark"] .advanced-toggle { border-color: #343840; }
+html[data-theme="dark"] .example-chip { background: #252932; border-color: #444953; color: #e4e5e9; }
+html[data-theme="dark"] .example-chip:hover { border-color: #8999ee; color: #cbd3ff; }
 
 /* Reference direction: the restrained editorial language of the supplied
    CloudyAI page—paper, rules, serif display type, monospaced metadata, and one
@@ -2230,32 +2230,43 @@ body.bg-gray-50 > .mx-auto.page-width {
 }
 .results-heading { border-top: 1px solid var(--lf-ink); padding: 12px 0 7px; }
 .results-heading h2 { font-size: 30px; }
-#viewer-container #canvasContainer { border: 1px solid #292a2a !important; }
-#canvasContainer::after { background: #151716; color: #e7e5df; font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
+/* THE STAGE'S BORDER IS A TOKEN, WITH !IMPORTANT ONLY BECAUSE THIS RULE IS
+   THE ONE THAT OUTRANKS THE VENDOR'S OWN `resize: both` BOX AND THE OTHER
+   STACKED THEME BLOCKS. Three earlier dark palettes disagreed about the box;
+   this is the one that wins. */
+html[data-theme="dark"] #viewer-container #canvasContainer {
+  background: var(--viewer-bg) !important;
+  border: 1px solid var(--border) !important;
+}
+html[data-theme="light"] #viewer-container #canvasContainer {
+  background: var(--viewer-bg) !important;
+  border: 1px solid var(--border) !important;
+}
+#canvasContainer::after { background: var(--viewer-bg); color: var(--ink-muted); font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 #downloads[style*="flex"] { gap: 0; }
 #downloads .btn { border: 0 !important; border-bottom: 1px solid var(--lf-line) !important; background: transparent !important; }
 #downloads .btn:last-child { border-bottom: 0 !important; }
 #status-row { padding: 9px 12px; }
 #status-message { color: var(--lf-ink); }
-body.lf-dark {
+html[data-theme="dark"] {
   --lf-paper: #171817; --lf-ink: #e9e6df; --lf-muted: #aaa69d; --lf-line: #45443f;
   --lf-forest: #d07860; --lf-forest-dark: #e08e76; --lf-mint: #392520;
   background: #171817 !important; color: #e9e6df !important;
 }
-body.lf-dark #fold-panel, body.lf-dark #upload-options-container,
-body.lf-dark #status-row, body.lf-dark #viewer-container #rightPanelContainer,
-body.lf-dark #predictionScoresBox, body.lf-dark #downloads,
-body.lf-dark #plddtContainer, body.lf-dark #heatmapContainer,
-body.lf-dark #controlsContainer { background: #20211f !important; border-color: #45443f !important; color: #e9e6df; }
-body.lf-dark .page-head-fold { border-color: #45443f; }
-body.lf-dark .page-head-fold h1, body.lf-dark .panel-intro h2,
-body.lf-dark .results-heading h2 { color: #e9e6df; }
-body.lf-dark #sequence, body.lf-dark #target, body.lf-dark input,
-body.lf-dark textarea, body.lf-dark select { background: #171817 !important; color: #e9e6df !important; border-color: #57564f !important; }
-body.lf-dark .example-chip, body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) { background: transparent; color: #e9e6df; border-color: #57564f; }
-body.lf-dark .example-chip:hover { color: #f0aa95; border-color: #d07860; background: #30231f; }
-body.lf-dark #downloads .btn { border-color: #45443f !important; }
-body.lf-dark #viewer-container:fullscreen { background: var(--lf-paper); }
+html[data-theme="dark"] #fold-panel, html[data-theme="dark"] #upload-options-container,
+html[data-theme="dark"] #status-row, html[data-theme="dark"] #viewer-container #rightPanelContainer,
+html[data-theme="dark"] #predictionScoresBox, html[data-theme="dark"] #downloads,
+html[data-theme="dark"] #plddtContainer, html[data-theme="dark"] #heatmapContainer,
+html[data-theme="dark"] #controlsContainer { background: #20211f !important; border-color: #45443f !important; color: #e9e6df; }
+html[data-theme="dark"] .page-head-fold { border-color: #45443f; }
+html[data-theme="dark"] .page-head-fold h1, html[data-theme="dark"] .panel-intro h2,
+html[data-theme="dark"] .results-heading h2 { color: #e9e6df; }
+html[data-theme="dark"] #sequence, html[data-theme="dark"] #target, html[data-theme="dark"] input,
+html[data-theme="dark"] textarea, html[data-theme="dark"] select { background: #171817 !important; color: #e9e6df !important; border-color: #57564f !important; }
+html[data-theme="dark"] .example-chip, html[data-theme="dark"] button:not(.btn-primary), html[data-theme="dark"] .btn:not(.btn-primary) { background: transparent; color: #e9e6df; border-color: #57564f; }
+html[data-theme="dark"] .example-chip:hover { color: #f0aa95; border-color: #d07860; background: #30231f; }
+html[data-theme="dark"] #downloads .btn { border-color: #45443f !important; }
+html[data-theme="dark"] #viewer-container:fullscreen { background: var(--lf-paper); }
 @media (max-width: 760px) {
   body.bg-gray-50 { padding: 8px !important; }
   .page-head-fold { min-height: 58px; }
@@ -2270,8 +2281,8 @@ body.lf-dark #viewer-container:fullscreen { background: var(--lf-paper); }
 }
 .model-memory-advisory[data-level="warning"] { border-color: #b5513d; color: #8d3d2e; background: #f7e9e4; }
 .model-memory-advisory[data-level="ok"] { border-color: #77766f; }
-body.lf-dark .model-memory-advisory { background: #292a27; color: #c2beb4; }
-body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; background: #32231f; border-color: #d07860; }
+html[data-theme="dark"] .model-memory-advisory { background: #292a27; color: #c2beb4; }
+html[data-theme="dark"] .model-memory-advisory[data-level="warning"] { color: #f0ab98; background: #32231f; border-color: #d07860; }
 /* ===========================================================================
    THE DESKTOP APP SHELL (>= 1100px).
 
@@ -2589,3 +2600,263 @@ body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; back
    plus 34px - measured 923px in an 891px column, 4px past the right edge of
    the page on every desktop width. */
 #status-col, #status-row { box-sizing: border-box; }
+
+/* ===========================================================================
+   THEME TOKENS. ONE NAME PER COLOUR, TWO THEMES, NO EXCEPTIONS.
+
+   🔴 ROOT CAUSE OF THE OLD DARK MODE: the palette lived in four stacked `:root`
+   blocks plus forty-seven `body.lf-dark` overrides, each hard-coding a hex.
+   Three of those blocks disagreed about what "dark" was (#14161a, #171817,
+   #111815 all applied to the same page, last one winning by source order), and
+   a component added anywhere had to be darkened by hand - which is why the
+   toolbar chips, the tabs and the empty state stayed light grey in dark mode.
+
+   The names below are the contract. `--lf-*` are kept as aliases so the rules
+   already written keep working and now follow the theme automatically.
+   =========================================================================== */
+:root {
+  color-scheme: light;
+  --bg: #f2f0ea;
+  --surface: #fbfaf6;
+  --surface-2: #f4f2ec;
+  --border: #d2cfc7;
+  --ink: #20201e;
+  --ink-muted: #686660;
+  --accent-bg: #b5513d;
+  --accent-bg-dark: #943f30;
+  --accent-ink: #8f3a2b;
+  --viewer-bg: #ffffff;
+  --shadow: rgb(32 32 30 / 8%);
+  --lf-paper: var(--bg);
+  --lf-ink: var(--ink);
+  --lf-muted: var(--ink-muted);
+  --lf-line: var(--border);
+  --lf-forest: var(--accent-bg);
+  --lf-forest-dark: var(--accent-bg-dark);
+  --lf-mint: #f6e7e1;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #151412;
+  --surface: #1c1b18;
+  --surface-2: #24221e;
+  --border: #36332d;
+  --ink: #ebe7df;
+  --ink-muted: #a8a196;
+  --accent-bg: #c2452d;
+  --accent-bg-dark: #a53a25;
+  --accent-ink: #f08a72;
+  --viewer-bg: #1a1916;
+  --shadow: rgb(0 0 0 / 45%);
+  --lf-paper: var(--bg);
+  --lf-ink: var(--ink);
+  --lf-muted: var(--ink-muted);
+  --lf-line: var(--border);
+  --lf-forest: var(--accent-bg);
+  --lf-forest-dark: var(--accent-bg-dark);
+  --lf-mint: #392520;
+}
+
+/* EVERY SURFACE GOES THROUGH THE TOKENS, LATE ENOUGH TO OUTRANK THE EARLIER
+   HARD-CODED DARK RULES WITHOUT REWRITING THEM. */
+body.bg-gray-50 {
+  background: var(--bg) !important;
+  color: var(--ink);
+}
+.container-box,
+#status-row,
+#fold-panel,
+#upload-options-container,
+#predictionScoresBox,
+#downloads,
+#plddtContainer,
+#heatmapContainer,
+#scatterContainer,
+#controlsContainer {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+#viewer-container #rightPanelContainer {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+input[type="text"], input[type="number"], input[type="file"], input[type="search"],
+textarea, select {
+  background: var(--surface-2) !important;
+  color: var(--ink) !important;
+  border-color: var(--border) !important;
+}
+.btn:not(.btn-primary),
+button:not(.btn-primary):not(.theme-toggle),
+.btn-toggle > span {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--border);
+}
+.btn-primary, .btn-primary:hover:not(:disabled) {
+  color: #fff !important;
+  background: var(--accent-bg) !important;
+  border-color: var(--accent-bg) !important;
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-bg-dark) !important; }
+
+/* THE VIEWER'S CHIPS FOLLOW THE THEME INSTEAD OF py2Dmol's light greys. */
+#viewer-toolbar .tool > span,
+.viewer-toolbar .btn-toggle > span {
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+#viewer-toolbar .tool input:checked + span,
+#viewer-toolbar .tool[aria-pressed="true"] > span,
+#viewer-toolbar .tool[aria-expanded="true"] > span {
+  background: var(--accent-bg);
+  border-color: var(--accent-bg);
+  color: #fff;
+}
+#viewer-toolbar .tool input:checked + span:hover,
+#viewer-toolbar .tool[aria-pressed="true"] > span:hover,
+#viewer-toolbar .tool[aria-expanded="true"] > span:hover {
+  background: var(--accent-bg-dark);
+  color: #fff;
+}
+
+/* FOCUS IS A RING, AND ONLY ON KEYBOARD FOCUS. The old rule painted a 3px
+   translucent green outline on every click as well, which is noise on a page
+   with this many buttons. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+.theme-toggle { width: 34px; padding: 0; flex: 0 0 auto; }
+.theme-toggle i { font-size: 13px; }
+
+/* THIN, THEMED SCROLLBARS. The three columns scroll; a default 15px white
+   scrollbar in dark mode is a bright stripe down the middle of the page. */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* THE STAGE. The viewer's own background comes from the token, and the box
+   around it keeps a hairline border in both themes. */
+#viewer-container #canvasContainer {
+  background: var(--viewer-bg);
+  border: 1px solid var(--border);
+}
+#viewer-container #canvas { background: var(--viewer-bg); }
+
+/* THE MAP'S COLOUR BAR AND TOOLTIP. The heatmap canvas is a bare square; the
+   scale it draws is only readable if something says what the colours mean. */
+.map-colour-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.map-colour-bar[hidden] { display: none; }
+.map-bar-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  background: linear-gradient(90deg,
+    var(--map-lo, #3d55bd), var(--map-mid, #f2f0ea), var(--map-hi, #c2452d));
+}
+.map-bar-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+.map-tooltip {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  padding: 3px 7px;
+  border-radius: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font: 11px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px var(--shadow);
+}
+.map-tooltip[hidden] { display: none; }
+#heatmapCanvas { image-rendering: pixelated; }
+.results-tabs [role="tab"][aria-selected="true"] {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+/* The themed pLDDT mode is what "pLDDT" in the dropdown already asks for, so
+   its own entry would be a second, oddly-named option for the same thing. */
+#colorSelect option[value="localfold"] { display: none; }
+
+/* ===========================================================================
+   THE AUTHORITATIVE DARK SURFACES.
+   Written after everything above on purpose, and with the `html[data-theme]`
+   prefix so they outrank the earlier hard-coded dark rules of the same shape.
+   Without this the old `#1d2026`/`#20211f` boxes won by source order, which is
+   how three different dark palettes ended up on one page.
+   =========================================================================== */
+html[data-theme="dark"] .container-box,
+html[data-theme="dark"] #status-row,
+html[data-theme="dark"] #fold-panel,
+html[data-theme="dark"] #upload-options-container,
+html[data-theme="dark"] #predictionScoresBox,
+html[data-theme="dark"] #downloads,
+html[data-theme="dark"] #plddtContainer,
+html[data-theme="dark"] #heatmapContainer,
+html[data-theme="dark"] #scatterContainer,
+html[data-theme="dark"] #controlsContainer {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+html[data-theme="dark"] #viewer-container #canvasContainer {
+  background: var(--viewer-bg);
+  border-color: var(--border);
+}
+html[data-theme="dark"] #viewer-container #canvas { background: var(--viewer-bg); }
+html[data-theme="dark"] .btn:not(.btn-primary),
+html[data-theme="dark"] button:not(.btn-primary):not(.theme-toggle),
+html[data-theme="dark"] .btn-toggle > span,
+html[data-theme="dark"] .py2dmol-viewer-instance .btn-toggle > span {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--border);
+}
+html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="number"],
+html[data-theme="dark"] input[type="file"],
+html[data-theme="dark"] input[type="search"],
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  background: var(--surface-2) !important;
+  color: var(--ink) !important;
+  border-color: var(--border) !important;
+}
+html[data-theme="dark"] .page-head-fold h1,
+html[data-theme="dark"] .panel-intro h2,
+html[data-theme="dark"] .results-heading h2 { color: var(--ink); }
+html[data-theme="dark"] .eyebrow,
+html[data-theme="dark"] .workspace-tagline,
+html[data-theme="dark"] .viewer-heading { color: var(--ink-muted); }

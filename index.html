@@ -14,6 +14,25 @@ AI Context: STANDALONE WEB APP ENTRY POINT
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LocalFold</title>
+    <!-- THE THEME IS SET BEFORE THE FIRST PAINT, NOT AFTER. A class added by the
+         module arrives after the stylesheet and after the browser has already
+         painted the light page, so a dark-mode reader watched the cream flash
+         on every load. This reads the same key app.js writes and falls back to
+         the OS setting; it cannot throw into a blank page because the whole
+         thing is inside one try. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("localfold-theme");
+          var dark = stored !== null
+            ? stored === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
     <!-- No Tailwind. It was loaded from cdn.tailwindcss.com - an in-browser JIT
          compiler that re-scans the DOM on every mutation, and warns in the
          console that it is not for production - to supply EIGHT utility rules.
@@ -75,7 +94,16 @@ AI Context: STANDALONE WEB APP ENTRY POINT
             <p class="workspace-tagline">Sequence to structure, on your own laptop.</p>
             <div class="fold-actions">
               <button type="button" id="model-shortcut" class="btn btn-grey btn-small" title="Jump to model settings">Model</button>
-              <button type="button" id="theme-toggle" class="btn btn-grey btn-small" aria-pressed="false">Dark</button>
+              <!-- ONE ICON, NOT A WORD THAT CHANGES. "Dark"/"Light" as button
+                   text was two labels for one state and took the width of the
+                   longest; a sun/moon pair with an aria-label and aria-pressed
+                   says what will happen and what is set. -->
+              <button type="button" id="theme-toggle" class="btn btn-grey btn-small theme-toggle"
+                      aria-pressed="false"
+                      aria-label="Switch to dark theme"
+                      title="Switch theme">
+                  <i class="fa-solid fa-moon" aria-hidden="true"></i>
+              </button>
               <button type="button" id="add-entity" class="btn btn-grey btn-small">
                 <i class="fa-solid fa-plus"></i>
                 <span>Add entity</span>
@@ -1016,10 +1044,23 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                          bolted to the panel's top edge - absolutely positioned,
                          22px tall, and painted outside the box it belongs to. -->
                     <div id="result-page-map" class="result-page" hidden>
-                        <div id="heatmapContainer" class="container-box" style="display: none;">
-                            <canvas id="heatmapCanvas" style="cursor: crosshair;"></canvas>
+                        <div id="heatmapWrap" style="position: relative;">
+                            <div id="heatmapContainer" class="container-box" style="display: none;">
+                                <canvas id="heatmapCanvas" style="cursor: crosshair;"></canvas>
+                            </div>
+                            <!-- THE SCALE, IN WORDS. The map is a bare square of
+                                 colour; without this the ramp is decoration. -->
+                            <div id="mapColourBar" class="map-colour-bar" hidden>
+                                <span id="mapBarMin">0 Å</span>
+                                <span class="map-bar-track" id="mapBarTrack"></span>
+                                <span id="mapBarMax">30 Å</span>
+                            </div>
+                            <div class="map-bar-ticks" id="mapBarTicks" hidden>
+                                <span>0</span><span id="mapBarMid">15</span><span>30</span>
+                            </div>
+                            <div id="mapTooltip" class="map-tooltip" role="status" hidden></div>
+                            <p class="result-empty" id="mapEmpty" hidden>Nothing to map yet - this appears with a prediction.</p>
                         </div>
-                        <p class="result-empty" id="mapEmpty" hidden>Nothing to map yet - this appears with a prediction.</p>
                     </div>
 
                     <!-- A BioEmu2 ENSEMBLE'S PCA, on py2Dmol's own scatter plot: one point a
