@@ -2229,7 +2229,15 @@ function revealViewer(renderer) {
   } catch { /* a missing panel is a lost tab, not a lost fold */ }
   const container = document.getElementById("viewer-container");
   if (container === null) return;
-  if (getComputedStyle(container).display === "none") container.style.display = "flex";
+  // 🔴 CLEAR THE INLINE VALUE, NOT REPLACE IT WITH "flex". hideResults wrote
+  // `display: none`; handing back a concrete display made the box a flex
+  // container the stylesheet never asked for and, more importantly, nothing
+  // re-measured the canvas after the swap when the box had been 0x0 - the
+  // blank viewer this whole function is the guard against. The sheet owns
+  // how this element is displayed at every width.
+  if (getComputedStyle(container).display === "none") {
+    container.style.removeProperty("display");
+  }
   document.getElementById("canvasContainer")?.classList.add("has-structure");
   const top = document.getElementById("sequence-viewer-container");
   if (top !== null) top.style.display = "block";
@@ -7347,9 +7355,18 @@ if (themeToggle !== null) {
     catch { /* session-only theme is still useful */ }
   });
 }
+// 🔴 NO scrollIntoView ANY MORE. It moved the VIEWPORT to the model row -
+// the one navigation on the page that did, and on the desktop shell there is
+// no viewport scroll to do: the rail scrolls itself if the row is out of view,
+// and focus() with preventScroll leaves the window alone.
 document.getElementById("model-shortcut")?.addEventListener("click", () => {
   const model = document.getElementById("model-family");
-  model?.scrollIntoView({ behavior: "smooth", block: "center" });
+  // The row is expanded first; a collapsed row's select is display:none and
+  // cannot take focus at all.
+  const options = document.getElementById("foldOptions");
+  if (options !== null && options.classList.contains("is-advanced-collapsed")) {
+    document.getElementById("advanced-toggle")?.click();
+  }
   model?.focus({ preventScroll: true });
 });
 
@@ -7393,7 +7410,10 @@ document.querySelectorAll("[data-example]").forEach((button) => {
     if (!sequence || !field) return;
     field.value = sequence;
     field.dispatchEvent(new Event("input", { bubbles: true }));
-    field.focus();
+    // 🔴 preventScroll. This focus follows a DOM write (the textarea is
+    // resized by fitSequenceTextareas on the input event), and a plain focus
+    // scrolls every ancestor - including the window - to meet the caret.
+    field.focus({ preventScroll: true });
   });
 });
 

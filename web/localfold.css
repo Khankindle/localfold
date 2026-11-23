@@ -2235,41 +2235,109 @@ body.lf-dark #viewer-container:fullscreen { background: #171817; }
 .model-memory-advisory[data-level="ok"] { border-color: #77766f; }
 body.lf-dark .model-memory-advisory { background: #292a27; color: #c2beb4; }
 body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; background: #32231f; border-color: #d07860; }
-@media (min-width: 1200px) {
+/* ===========================================================================
+   THE DESKTOP APP SHELL (>= 1100px).
+
+   WHY A SHELL AT ALL. The page used to be one long document that scrolled:
+   press Fold, `hideResults()` set the viewer and the panels to display:none,
+   the document shrank by half a screen, the browser's scroll anchoring moved
+   the window to keep the reader's pixel under the caret - and on completion
+   revealViewer put the content back and moved it again. Nothing called
+   scrollTo; the window still travelled. The fix is structural, not a
+   scroll-restore hack: the window never scrolls. The head is one row, the
+   three columns below it each own their overflow, and every column is
+   height-constrained by the viewport rather than by its content.
+
+   THE COLUMNS: left rail (molecule + loader), centre (status above, 3D viewer
+   below), right (analysis). Inside #viewer-container the existing two-column
+   grid is what puts the analysis beside the structure, so the shell's second
+   column holds both and the third is #rightPanelsContainer's column.
+
+   Every region that GROWS while it is on screen - the results column, the
+   input rail - is overflow-anchor:none as well, so a late panel cannot pull
+   the reader's position with it.
+   =========================================================================== */
+@media (min-width: 1100px) {
   html, body { height: 100%; }
-  body.bg-gray-50 { height: 100dvh; min-height: 0; overflow: hidden; padding: 10px 18px !important; }
+  body.bg-gray-50 {
+    height: 100dvh; min-height: 0; overflow: hidden;
+    padding: 8px 14px !important;
+  }
   body.bg-gray-50 > .mx-auto.page-width {
-    width: 100% !important; max-width: none; height: 100%; min-height: 0;
-    grid-template-columns: minmax(340px, 27vw) minmax(0, 1fr);
-    grid-template-rows: 72px 50px minmax(0, 1fr) 132px min-content;
-    gap: 10px 22px;
+    width: 100% !important; max-width: none;
+    height: 100%; min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(320px, 26%) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    gap: 10px 18px;
     align-items: stretch;
   }
-  .page-head-fold { grid-column: 1 / -1; grid-row: 1; }
-  #fold-panel { grid-column: 1; grid-row: 2 / 4; max-height: none; min-height: 0; height: 100%; overflow-y: auto; }
-  #upload-options-container { grid-column: 1; grid-row: 4; max-height: 132px; height: 100%; overflow: auto; }
-  #status-row { grid-column: 2; grid-row: 2; min-height: 0; margin: 0; }
-  #viewer-container { grid-column: 2; grid-row: 3 / 5; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+  /* THE HEAD, AND IT CANNOT GROW. Two rows of controls plus a 42px title
+     used to make this 72px+; at 56px the title takes one line and the tagline
+     is the first thing cut. A head that grows pushes the whole shell's first
+     row taller and moves everything below it. */
+  .page-head-fold {
+    grid-column: 1 / -1; grid-row: 1;
+    min-height: 0; max-height: 56px; overflow: hidden;
+    padding: 6px 0 7px; margin: 0;
+  }
+  .page-head-fold h1 { font-size: clamp(24px, 2.4vw, 32px); }
+  .workspace-tagline {
+    max-width: 46ch; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: 12px;
+  }
+  /* LEFT RAIL. It scrolls itself; the window does not. */
+  .app-rail {
+    grid-column: 1; grid-row: 2 / 7;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 0; overflow-y: auto; overflow-x: hidden;
+    overscroll-behavior: contain; overflow-anchor: none;
+    padding-right: 2px;
+  }
+  #fold-panel {
+    width: 100% !important; margin: 0 !important; max-height: none;
+    min-height: 0; flex: 0 1 auto; overflow: visible;
+  }
+  #upload-options-container {
+    width: 100% !important; margin: 0 !important;
+    flex: 0 0 auto; overflow: hidden;
+  }
+  /* CENTRE: status block, then the viewer. */
+  #status-col { grid-column: 2; grid-row: 2; min-width: 0; }
+  #status-row { min-height: 56px; margin: 0; }
+  #session { margin-top: 6px; }
+  #viewer-container {
+    grid-column: 2; grid-row: 3;
+    min-width: 0; min-height: 0; height: 100%; max-height: 100%;
+    overflow: hidden; display: block;
+  }
   #viewer-container #mainContainer {
     display: grid; width: 100%; height: 100%; min-width: 0; min-height: 0;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 32%);
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 34%);
     align-items: stretch; gap: 14px;
   }
   #viewer-container #viewerColumn {
-    display: grid; grid-template-rows: 30px minmax(0, 1fr) auto;
+    display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto;
     width: 100%; height: 100%; min-width: 0; min-height: 0; gap: 8px;
   }
+  /* FIXED VIEWER HEIGHT, which is the shell row. The canvas is never sized
+     by its content and never by a resize handle, so nothing around it can
+     shift when a model lands. */
   #viewer-container #canvasContainer {
     width: 100% !important; height: 100% !important; min-width: 0; min-height: 0;
-    max-height: none; aspect-ratio: auto; resize: none;
+    max-height: none; aspect-ratio: auto; resize: none; overflow: hidden;
   }
   #viewer-container #canvas,
   #viewer-container .py2dmol-slot--1 > .py2dmol-slot-body {
     width: 100% !important; height: 100% !important; min-width: 0; min-height: 0;
   }
+  /* THE ANALYSIS COLUMN SCROLLS ITSELF. Its panels arrive at different times
+     during a fold; with the window locked, their arrival can only move this
+     column, which is exactly what a reader expects. */
   #viewer-container #rightPanelsContainer {
     display: flex; width: 100%; min-width: 0; min-height: 0; max-height: 100%;
     overflow-y: auto; overflow-x: hidden; align-self: stretch; gap: 10px;
+    overscroll-behavior: contain; overflow-anchor: none;
   }
   #viewer-container #rightPanelContainer,
   #viewer-container #binding-results-container { width: 100%; min-width: 0; }
@@ -2277,48 +2345,63 @@ body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; back
   #viewer-container .py2dmol-slot--2 > .py2dmol-slot-body {
     width: 100% !important; max-width: 100%; min-width: 0;
   }
+  /* RESERVED PLOT SPACE. The PAE matrix is square and always will be, and
+     the confidence card is four cells: their boxes are sized before the data
+     arrives, so showing a result does not reflow the column around it. */
   #viewer-container #heatmapContainer { aspect-ratio: 1 / 1; }
-  #sequence-viewer-container { grid-column: 1 / -1; grid-row: 5; max-height: 22vh; overflow: auto; }
-  #msa-buttons { grid-column: 1 / -1; }
-  footer { grid-column: 1 / -1; }
-  #viewer-container:fullscreen {
-    position: fixed; inset: 0; z-index: 9999; width: 100vw !important; height: 100dvh !important;
-    max-width: none !important; margin: 0; padding: 18px; overflow: hidden;
-    background: var(--lf-paper);
+  #predictionScoresBox { min-height: 92px; }
+  #plddtContainer { min-height: 180px; }
+  #downloads { min-height: 116px; }
+  #sequence-viewer-container {
+    grid-column: 2; grid-row: 4; width: 100% !important;
+    max-height: 22vh; overflow: auto; overscroll-behavior: contain;
   }
-  #viewer-container:fullscreen #mainContainer { grid-template-columns: minmax(0, 1fr) minmax(340px, 28vw); }
-  #viewer-container:fullscreen #viewerColumn { grid-template-rows: 32px minmax(0, 1fr) auto; }
+  #msa-buttons { grid-column: 2; grid-row: 5; width: 100% !important; }
+  footer { grid-column: 1 / -1; grid-row: 6; }
+
+  /* FULL SCREEN IS A LAYOUT, NOT AN ESCAPE. #viewer-container is the
+     element that goes up (never body/document): its own box becomes the
+     viewport, the toolbar stays inside it, and leaving restores the shell. */
+  #viewer-container:fullscreen {
+    width: 100% !important; height: 100% !important; max-width: none !important;
+    margin: 0; padding: 12px 14px; overflow: hidden;
+    background: var(--lf-paper);
+    box-sizing: border-box;
+  }
+  #viewer-container:fullscreen #mainContainer {
+    height: 100%; min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 32%);
+  }
+  #viewer-container:fullscreen #viewerColumn { height: 100%; min-height: 0; }
+  #viewer-container:fullscreen #canvasContainer { height: 100% !important; min-height: 0; }
+  #viewer-container:fullscreen #rightPanelsContainer { max-height: 100%; overflow-y: auto; }
 }
 
-/* Desktop workspace correction: the sequence is a real second row in the
-   entity grid, not whatever pixels remain beside four buttons. Let the page
-   grow and scroll; only the 3D canvas itself is viewport-fitted. */
-@media (min-width: 1200px) {
-  body.bg-gray-50 {
-    height: auto; min-height: 100vh; overflow-x: hidden; overflow-y: auto;
-    padding: 10px 18px 24px !important;
-  }
+/* BELOW THE SHELL: the columns stack and the page scrolls again, because a
+   narrow window cannot show three columns at once. The viewer keeps a real
+   height rather than collapsing to its content. */
+@media (max-width: 1099.98px) {
+  body.bg-gray-50 { height: auto; min-height: 100vh; overflow-y: auto; }
   body.bg-gray-50 > .mx-auto.page-width {
-    height: auto; min-height: 100vh;
-    grid-template-columns: minmax(390px, 28vw) minmax(0, 1fr);
-    grid-template-rows: 72px auto minmax(640px, auto) auto auto;
-    align-items: stretch;
+    display: flex; flex-direction: column; gap: 10px;
+    height: auto; min-height: 0;
   }
-  #fold-panel { max-height: none; min-height: 0; height: 100%; overflow: visible; }
-  #upload-options-container { max-height: none; height: auto; overflow: visible; }
-  #viewer-container { min-height: 640px; height: 100%; overflow: visible; }
-  #viewer-container #mainContainer {
-    min-height: 640px; height: 100%;
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 29%);
-    align-items: stretch;
+  .app-rail { display: contents; }
+  .page-head-fold,
+  #status-col, #viewer-container, #sequence-viewer-container, #msa-buttons,
+  footer { width: 100% !important; }
+  #viewer-container #mainContainer { grid-template-columns: minmax(0, 1fr); }
+  #viewer-container #canvasContainer {
+    height: clamp(320px, 55dvh, 560px) !important; min-height: 320px; resize: none;
   }
-  #viewer-container #viewerColumn { min-height: 640px; }
-  #viewer-container #canvasContainer { min-height: 0; }
-  #viewer-container #rightPanelsContainer { min-height: 0; overflow-x: hidden; overflow-y: auto; }
-  #viewer-container #rightPanelContainer { min-width: 0; }
-  #viewer-container #heatmapContainer,
-  #viewer-container .py2dmol-slot--2 > .py2dmol-slot-body { width: 100% !important; max-width: 100%; }
-  #viewer-container .py2dmol-slot--1 > .py2dmol-slot-body { width: 100% !important; }
+  #viewer-container #rightPanelsContainer { overflow: visible; max-height: none; }
+  #viewer-container #heatmapContainer { aspect-ratio: 1 / 1; }
+  #sequence-viewer-container { max-height: none; }
+}
+
+/* The desktop entity-row layout, which needs the rail's full width to read as
+   a form rather than a wrapped pile. */
+@media (min-width: 1100px) {
   .entity-row:not(.entity-row-ligand):not(.entity-row-link) {
     grid-template-columns: minmax(150px, 1fr) 60px 34px 34px;
     grid-template-rows: auto auto;
@@ -2340,16 +2423,4 @@ body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; back
     height: clamp(190px, 34vh, 290px); min-height: 190px; line-height: 1.5;
     white-space: pre-wrap; overflow-wrap: anywhere;
   }
-  #viewer-container:fullscreen {
-    position: fixed; inset: 0; z-index: 9999; width: 100vw !important;
-    height: 100dvh !important; min-height: 0; max-width: none !important;
-    margin: 0; padding: 14px; overflow: hidden;
-  }
-  #viewer-container:fullscreen #mainContainer {
-    height: 100%; min-height: 0;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 30vw);
-  }
-  #viewer-container:fullscreen #viewerColumn { height: 100%; min-height: 0; }
-  #viewer-container:fullscreen #canvasContainer { height: 100% !important; min-height: 0; }
-  #viewer-container:fullscreen #rightPanelsContainer { max-height: 100%; overflow-y: auto; }
 }

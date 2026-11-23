@@ -108,6 +108,11 @@ AI Context: STANDALONE WEB APP ENTRY POINT
              aborts the REST of initializeApp. The symptom is not an error; it is
              that the MSA panel never wires itself up. Hidden is safe. Deleted is
              not. Our own ids are distinct from theirs for the same reason. -->
+        <!-- THE LEFT RAIL: the molecule to fold, and py2Dmol's loader settings
+             beneath it. It is one scroll column of the desktop shell (see
+             web/localfold.css), so the page head, the viewer and the analysis
+             column are all on screen at once and the WINDOW never scrolls. -->
+        <div class="app-rail">
         <div id="fold-panel" class="container-box page-width" style="margin-bottom: 10px;">
           <div class="panel-intro"><span class="eyebrow">01 / INPUT</span><h2>Your molecule</h2><p>Paste a sequence or describe the entities to fold.</p></div>
           <div class="fetch-panel">
@@ -559,7 +564,14 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                 <input type="checkbox" id="alignFramesCheckbox" checked>
                 <input type="checkbox" id="loadMSACheckbox" checked>
             </div>
+        </div><!-- /#upload-options-container -->
+        </div><!-- /.app-rail -->
 
+        <!-- THE CENTRE COLUMN'S TOP: the status block, which never changes
+             height, so the viewer below it never moves. It used to live
+             inside #upload-options-container - the only visible thing in a
+             box of hidden loader settings. -->
+        <div id="status-col">
             <!-- STATUS AND PROGRESS ARE ONE BLOCK, AND IT NEVER CHANGES HEIGHT.
                  The bar used to live at the foot of the fold panel with a
                  `hidden` attribute, so every fold grew that panel by 11px and

@@ -1,0 +1,1 @@
+{"name":"browser-tmp","private":true,"version":"1.0.0","dependencies":{"@sparticuz/chromium":"^153.0.0","electron":"^45.4.1","puppeteer-core":"^25.18.1"}}
