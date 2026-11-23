@@ -2031,10 +2031,30 @@ body.lf-dark #canvasContainer::after { background: #101713; }
 body.lf-dark footer { color: #a8b8ae; border-color: #35453c; }
 .workspace-tagline { margin: 0 auto 0 14px; color: var(--lf-muted); font-size: 15px; }
 body.lf-dark .workspace-tagline { color: #a8b8ae; }
-#viewer-container:fullscreen { width: 100vw !important; height: 100vh; padding: 14px; overflow: auto; background: var(--lf-paper); }
-body.lf-dark #viewer-container:fullscreen { background: #111815; }
-#viewer-container:fullscreen #mainContainer { height: 100%; }
-#viewer-container:fullscreen #canvasContainer { height: calc(100vh - 100px) !important; }
+/* FULL SCREEN IS THE VIEWER'S OWN BOX, NOT THE PAGE. The rule is outside the
+   media query because it has to hold at every width: :fullscreen already takes
+   the element out of flow and sizes it to the viewport, so this states the
+   padding and lets the grid inside fill it. It used to add
+   `height: calc(100vh - 100px)` to the canvas, which subtracted a strip that is
+   not there and letterboxed the picture at every width. */
+#viewer-container:fullscreen {
+  width: 100% !important; height: 100% !important; max-width: none !important;
+  margin: 0; padding: 10px 12px; overflow: hidden;
+  background: var(--lf-paper); box-sizing: border-box;
+}
+body.lf-dark #viewer-container:fullscreen { background: var(--lf-paper); }
+#viewer-container:fullscreen #mainContainer { height: 100%; min-height: 0; }
+#viewer-container:fullscreen #viewerColumn {
+  position: relative; height: 100%; min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+#viewer-container:fullscreen .viewer-heading { display: none; }
+#viewer-container:fullscreen #viewer-toolbar {
+  position: absolute; top: 4px; left: 6px; right: 6px; z-index: 5;
+  flex-wrap: nowrap; gap: 4px; min-height: 0; background: transparent;
+}
+#viewer-container:fullscreen #canvasContainer { height: 100% !important; min-height: 0; }
+#viewer-container:fullscreen #rightPanelsContainer { max-height: 100%; overflow-y: auto; }
 @media (max-width: 760px) { .workspace-tagline { display: none; } }
 
 /* Editorial finish: warm paper, ink, and a single cobalt action colour. */
@@ -2080,7 +2100,9 @@ body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) { bac
 body.lf-dark .panel-intro p, body.lf-dark .workspace-tagline, body.lf-dark .viewer-heading { color: #a4a7b0; }
 body.lf-dark .eyebrow { color: #a4a7b0; }
 body.lf-dark #status-line { color: #c5c8cf; }
-body.lf-dark #viewer-container:fullscreen { background: #14161a; }
+/* Token-driven: the full-screen box is the viewer's paper, whichever theme
+   is up. The three stacked hard-coded dark values disagreed. */
+body.lf-dark #viewer-container:fullscreen { background: var(--lf-paper); }
 @media (max-width: 760px) {
   .viewer-heading { min-height: 25px; }
   #downloads[style*="flex"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2233,7 +2255,7 @@ body.lf-dark textarea, body.lf-dark select { background: #171817 !important; col
 body.lf-dark .example-chip, body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) { background: transparent; color: #e9e6df; border-color: #57564f; }
 body.lf-dark .example-chip:hover { color: #f0aa95; border-color: #d07860; background: #30231f; }
 body.lf-dark #downloads .btn { border-color: #45443f !important; }
-body.lf-dark #viewer-container:fullscreen { background: #171817; }
+body.lf-dark #viewer-container:fullscreen { background: var(--lf-paper); }
 @media (max-width: 760px) {
   body.bg-gray-50 { padding: 8px !important; }
   .page-head-fold { min-height: 58px; }
@@ -2380,22 +2402,23 @@ body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; back
   #msa-buttons { grid-column: 2; grid-row: 5; width: 100% !important; }
   footer { grid-column: 1 / -1; grid-row: 6; }
 
-  /* FULL SCREEN IS A LAYOUT, NOT AN ESCAPE. #viewer-container is the
-     element that goes up (never body/document): its own box becomes the
-     viewport, the toolbar stays inside it, and leaving restores the shell. */
-  #viewer-container:fullscreen {
-    width: 100% !important; height: 100% !important; max-width: none !important;
-    margin: 0; padding: 12px 14px; overflow: hidden;
-    background: var(--lf-paper);
-    box-sizing: border-box;
-  }
+  /* FULL SCREEN IS THE VIEWER'S OWN BOX MADE BIG, NOT THE PAGE MADE BLANK.
+     🔴 ROOT CAUSE OF THE BROKEN FULL-SCREEN LAYOUT: the old rule wrote
+     `position: fixed; inset: 0` on top of the grid. A fixed box inside an
+     ancestor that creates a containing block is placed against THAT ancestor,
+     not the viewport, and the 600x600 canvas rules underneath were never
+     re-measured - so the picture kept its small size inside a large frame.
+     :fullscreen already takes the element out of flow and sizes it to the
+     viewport; the rule states a size and nothing else.
+     🔴 AND THE TOOLBAR IS AN OVERLAY INSIDE THE BOX. It is the viewer's own
+     strip; docking it above the canvas in full screen would leave the canvas
+     the full height minus the strip and the picture letterboxed for no reason.
+     */
+  /* At shell widths the analysis column keeps its share of the big box; below
+     them the base rules stack it, which is what the narrow layout already does. */
   #viewer-container:fullscreen #mainContainer {
-    height: 100%; min-height: 0;
     grid-template-columns: minmax(0, 1fr) minmax(320px, 32%);
   }
-  #viewer-container:fullscreen #viewerColumn { height: 100%; min-height: 0; }
-  #viewer-container:fullscreen #canvasContainer { height: 100% !important; min-height: 0; }
-  #viewer-container:fullscreen #rightPanelsContainer { max-height: 100%; overflow-y: auto; }
 }
 
 /* BELOW THE SHELL: the columns stack and the page scrolls again, because a
