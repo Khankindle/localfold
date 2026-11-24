@@ -1762,6 +1762,12 @@ async function alignmentText(chains, signal, family, wantsMsa = []) {
  * hydrophobicity, plus anything in `window.py2dmol_customColors`.
  */
 function setColourMode(mode) {
+  // 🔴 THE NAME ASKED FOR IS pLDDT, AND THE NAME THAT DRAWS THE BINS IS OURS.
+  // Every caller in this file asks for "plddt"; the rainbow it used to get is
+  // not what any of them meant.
+  if (mode === "plddt" && window.py2dmol_customColors?.localfold !== undefined) {
+    mode = "localfold";
+  }
   const registry = window.py2dmol_viewers ?? {};
   const renderer = registry[Object.keys(registry)[0]]?.renderer;
   // 🔴 THROUGH py2Dmol's OWN SELECT FIRST, because that keeps the dropdown the
@@ -2195,6 +2201,300 @@ function alignedToFirstPass(sequence, structure, firstPassStructure) {
  * acts while the map is holding the slot - so calling it per frame costs a
  * style read and settles the question for every path at once.
  */
+/* ==========================================================================
+ * THE CANVAS IS A VIEWPORT, AND THIS PAGE OWNS ITS LIFECYCLE.
+ *
+ * 🔴 ROOT CAUSE OF THE BLANK VIEWER: the empty-state cover is a pseudo-element
+ * on #canvasContainer, and the ONLY rule that lifts it is
+ * `#canvasContainer.has-structure::after { display: none }`. That class was
+ * added in exactly one place - revealViewer, which runs on LocalFold's own
+ * fold path. py2Dmol's FILE INGESTION path, which is what the upload box, a
+ * dropped PDB and a restored session all go through, never adds it. Measured:
+ * loading tools/fixtures/1brs-crystal.pdb through #file-upload left the object
+ * parsed (status "1brs-crystal, 195 residues", objectsData populated) with the
+ * cover still up - a dark panel over a drawn structure. The structure was
+ * there and invisible, which is indistinguishable from a blank canvas.
+ *
+ * So the cover stops being a class somebody remembers and becomes a function
+ * of the viewer's own state, asked at every entry point that can change it.
+ *
+ * 🔴 AND THE CANVAS IS SIZED BY AN OBSERVER THAT STARTS BEFORE IT HAS A BOX.
+ * setupViewport measures #canvasContainer at load; while it is inside a
+ * `display: none` ancestor that is 0x0 and it marks the canvas
+ * `__viewportProvisional`, drawing nothing until a resize is seen. Nothing in
+ * this file ever answers that, so any path that reveals the container without
+ * the observer firing leaves a provisionally-sized, undrawn canvas. Our own
+ * observer closes it, and sizes the backing store explicitly rather than
+ * trusting a style write to be noticed.
+ * ========================================================================== */
+
+/** The one renderer this page drives. `viewer` is deliberately undefined mid-run. */
+function currentRenderer() {
+  const registry = window.py2dmol_viewers ?? {};
+  return registry[Object.keys(registry)[0]]?.renderer;
+}
+
+/**
+ * Put the empty-state cover away iff something is actually in the viewer.
+ *
+ * 🔴 READ objectsData, NOT the object picker: the picker is filled by the same
+ * ingestion but is hidden below two objects, so a single fold would look like
+ * nothing happened if the two disagreed.
+ */
+function syncViewerCover(renderer = currentRenderer()) {
+  const box = document.getElementById("canvasContainer");
+  if (box === null) return;
+  const occupied = renderer !== undefined && renderer !== null
+    && Object.keys(renderer.objectsData ?? {}).length > 0;
+  box.classList.toggle("has-structure", occupied);
+}
+
+/**
+ * Size the canvas to its box and draw.
+ *
+ * 🔴 THE BACKING STORE IS SET HERE, NOT ONLY THE CSS. py2Dmol's own observer
+ * does both together (`g()` then `_updateCanvasDimensions()` then render); a
+ * page-level fix that writes only style.width leaves the drawing buffer at its
+ * old size and the picture stretched or absent. The dpr comes from
+ * `window.canvasDPR` when a caller has pinned one, which is the same order
+ * setupViewport uses.
+ *
+ * Idempotent: the comparison means an ordinary resize costs nothing, and a
+ * resize that has already been handled by the vendor's observer does not
+ * redraw twice.
+ */
+function primeCanvas(reason) {
+  const renderer = currentRenderer();
+  const box = document.getElementById("canvasContainer");
+  const canvas = document.getElementById("canvas");
+  if (renderer === undefined || box === null || canvas === null) return;
+  const rect = box.getBoundingClientRect();
+  // 🔴 A HIDDEN BOX IS NOT A REASON TO DRAW. Sizing to zero is how a
+  // provisional canvas becomes a permanent one.
+  if (!(rect.width >= 1) || !(rect.height >= 1)) return;
+  const dpr = Number(window.canvasDPR) || window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+  const targetWidth = Math.round(width * dpr);
+  const targetHeight = Math.round(height * dpr);
+  if (Math.abs(canvas.width - targetWidth) > 1 || Math.abs(canvas.height - targetHeight) > 1) {
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  }
+  try { renderer._updateCanvasDimensions?.(); } catch { /* best effort */ }
+  try { renderer.render?.(reason); } catch { /* a lost context throws here */ }
+  syncViewerCover(renderer);
+}
+
+/** The small "the graphics context went away" notice, and its recovery. */
+function showViewerLost() {
+  let notice = document.getElementById("viewer-lost");
+  if (notice === null) {
+    notice = document.createElement("div");
+    notice.id = "viewer-lost";
+    const text = document.createElement("p");
+    text.textContent = "Viewer lost";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn btn-secondary btn-small";
+    button.textContent = "Reload";
+    // 🔴 location.reload(), because a restored WebGL context is not a restored
+    // drawing: the buffers, textures and cached segment indices belong to the
+    // context that died. Everything else on the page survives it.
+    button.addEventListener("click", () => window.location.reload());
+    notice.append(text, button);
+    document.getElementById("canvasContainer")?.appendChild(notice);
+  }
+  notice.hidden = false;
+}
+
+/**
+ * Watch the canvas for the three ways it goes blank without an error.
+ *
+ * 🔴 webglcontextlost IS NOT RECOVERED BY RENDERING AGAIN. The default is for
+ * the browser to discard the context; a render on a dead context is a no-op
+ * that looks exactly like "nothing drew". preventDefault is what makes
+ * `webglcontextrestored` fire at all, and the notice is what tells the reader
+ * which of the two happened.
+ */
+function installCanvasWatch() {
+  if (window.__localfoldCanvasWatchInstalled === true) return;
+  window.__localfoldCanvasWatchInstalled = true;
+  const box = document.getElementById("canvasContainer");
+  const canvas = document.getElementById("canvas");
+  if (box !== null && window.ResizeObserver !== undefined) {
+    new ResizeObserver(() => primeCanvas("localfold.resize")).observe(box);
+  }
+  if (canvas !== null) {
+    canvas.addEventListener("webglcontextlost", (event) => {
+      event.preventDefault();
+      showViewerLost();
+    });
+    canvas.addEventListener("webglcontextrestored", () => {
+      const notice = document.getElementById("viewer-lost");
+      if (notice !== null) notice.hidden = true;
+      primeCanvas("localfold.context-restored");
+    });
+  }
+  // FULL SCREEN MOVES THE BOX WITHOUT CHANGING THE PAGE. The vendor's own
+  // fullscreen helper toggles a class on the whole instance; this is the half
+  // that re-measures afterwards, on the frame where the new box exists.
+  document.addEventListener("fullscreenchange", () => {
+    requestAnimationFrame(() => primeCanvas("localfold.fullscreen"));
+  });
+  // A COLOUR CHANGE IS A REDRAW ORDER, AND py2dmol DISPATCHES ONE.
+  document.addEventListener("py2dmol-color-change", () => primeCanvas("localfold.color"));
+  // ...and every ingestion goes out through this one function, whatever opened
+  // it - the upload box, a drop, a session. Wrapping it rather than each call
+  // site is what makes the cover agree with the viewer.
+  const ingest = window.py2dmolLoadFiles;
+  if (typeof ingest === "function") {
+    window.py2dmolLoadFiles = async function (...args) {
+      const result = await ingest.apply(this, args);
+      primeCanvas("localfold.ingest");
+      return result;
+    };
+  }
+  syncObjectRow();
+}
+
+/**
+ * Show the picker row only while it can name something.
+ *
+ * 🔴 AND WATCH THE SELECT, NOT THE INGEST. Nothing in this file writes an
+ * option: the bundle does it in `_switchToObject`, which every arrival path
+ * funnels through, and that runs after the promise from the caller resolves -
+ * so a check made here would read an empty list one turn too early and the row
+ * would stay hidden over a structure that had just arrived.
+ */
+function syncObjectRow() {
+  const row = document.getElementById("objectRow");
+  const select = document.getElementById("objectSelect");
+  if (row === null || select === null) return;
+  const has = select.options.length > 0 && select.value !== "";
+  row.classList.toggle("has-object", has);
+  row.style.display = "";   // py2dmol's inline flex has to go for the class to rule
+}
+if (document.getElementById("objectSelect") !== null) {
+  new MutationObserver(() => syncObjectRow())
+    .observe(document.getElementById("objectSelect"), { childList: true });
+}
+
+installCanvasWatch();
+
+/* ==========================================================================
+ * THE CENTRE PANE IS THE STRUCTURE, AND THE RESULTS HAVE ONE TAB SET.
+ *
+ * 🔴 ROOT CAUSE OF THE DUPLICATED CONTROLS: py2Dmol's slot layer wraps
+ * `#canvasContainer`, `#plddtContainer` and `#heatmapContainer` in
+ * `.py2dmol-slot` boxes, each with a tab strip of its own, and the heatmap
+ * renderer adds ANOTHER strip for PAE/contact inside the panel - absolutely
+ * positioned, 22px tall, painted above the box it belongs to. So one picture
+ * was reachable three ways, and the structure shared its pane with tabs that
+ * moved it into a box beside a map.
+ *
+ * Dropping `window.py2dmolSlots` before initialization is the whole fix: the
+ * bundle guards both uses (`window.py2dmolSlots?.prepare`, `a && bind`) and
+ * nothing else reads it. The elements stay where this file puts them, which is
+ * what lets the Results column own the single tab strip below.
+ *
+ * 🔴 WHAT IT COSTS, SAID PLAINLY: `setSlots` is how a fold's trunk contact map
+ * used to take the BIG slot while the structure was still absent. Without the
+ * slot layer there is no big/small - the map lives in the Contact tab and the
+ * structure owns the centre pane, which is the arrangement asked for. The
+ * contact map is still drawn at every recycle (showTrunkContacts).
+ * ========================================================================== */
+delete window.py2dmolSlots;
+
+/** The Results column's four tabs and the page each one shows. */
+const RESULT_PAGES = {
+  summary: "result-page-summary",
+  plddt: "result-page-plddt",
+  pae: "result-page-map",
+  contact: "result-page-map",
+};
+
+let resultsTabsWired = false;
+
+/**
+ * Show one page of the Results column.
+ *
+ * 🔴 THE SCORES ARE NOT A PAGE. They sit above the tabs and stay put: they are
+ * the headline number for whichever map is up, and hiding them on the PAE tab
+ * would hide the one thing a reader opened the tab to read against.
+ *
+ * 🔴 AND PAE/CONTACT PIN THE MAP THROUGH THE RENDERER, NOT through a second tab
+ * strip. `heatmapRenderer.pin(key)` is the supported selector; the panel's own
+ * strip is hidden in the sheet so there is exactly one answer to "which map".
+ */
+function selectResultsTab(name) {
+  const tabs = document.getElementById("results-tabs");
+  if (tabs === null || RESULT_PAGES[name] === undefined) return;
+  const selected = [];
+  for (const tab of tabs.querySelectorAll('[role="tab"]')) {
+    const on = tab.dataset.resultsTab === name;
+    tab.setAttribute("aria-selected", String(on));
+    tab.tabIndex = on ? 0 : -1;
+    if (on) selected.push(tab);
+  }
+  // Two tab names share one page, so a page is shown when its key maps to the
+  // same element as the chosen one - not when the strings match.
+  for (const [key, id] of Object.entries(RESULT_PAGES)) {
+    const page = document.getElementById(id);
+    if (page !== null) page.hidden = RESULT_PAGES[key] !== RESULT_PAGES[name];
+  }
+  const mapPage = document.getElementById("result-page-map");
+  const wrap = document.getElementById("heatmapWrap");
+  if (name === "pae" || name === "contact") {
+    const renderer = currentRenderer();
+    try {
+      renderer?.heatmapRenderer?.pin?.(name);
+      window.Heatmap?.updateVisibility?.(renderer);
+    } catch { /* the panel is optional */ }
+  }
+  // The map page says what it holds, and the sentence about no map belongs to
+  // the map - not to the tab. 🔴 READ THE WRAP: `mapEmpty` sits beside the canvas
+  // inside `#heatmapWrap`, and `updateVisibility` only flips the container's
+  // class, so "the container has a style.display" was never the test; a crystal
+  // with no matrices left the empty sentence up over a live picture.
+  const shown = mapPage !== null && !mapPage.hidden;
+  const hasBytes = currentRenderer()?.heatmapRenderer?.bytes != null;
+  const empty = document.getElementById("mapEmpty");
+  if (empty !== null) empty.hidden = !(shown && !hasBytes);
+  if (hasBytes) updateMapScaleUI(name);
+}
+
+function installResultsTabs() {
+  if (resultsTabsWired) return;
+  resultsTabsWired = true;
+  const tabs = document.getElementById("results-tabs");
+  if (tabs === null) return;
+  tabs.addEventListener("click", (event) => {
+    const tab = event.target.closest?.('[role="tab"]');
+    if (tab !== null && tab !== undefined) selectResultsTab(tab.dataset.resultsTab);
+  });
+  // Roving tabindex, and the arrows a tablist is expected to answer.
+  tabs.addEventListener("keydown", (event) => {
+    const order = ["summary", "plddt", "pae", "contact"];
+    const current = tabs.querySelector('[role="tab"][aria-selected="true"]');
+    const index = order.indexOf(current?.dataset.resultsTab);
+    let next = null;
+    if (event.key === "ArrowRight") next = order[(index + 1) % order.length];
+    else if (event.key === "ArrowLeft") next = order[(index - 1 + order.length) % order.length];
+    else if (event.key === "Home") next = order[0];
+    else if (event.key === "End") next = order[order.length - 1];
+    if (next === null) return;
+    event.preventDefault();
+    selectResultsTab(next);
+    tabs.querySelector(`[data-results-tab="${next}"]`)?.focus({ preventScroll: true });
+  });
+  selectResultsTab("summary");
+}
+
+installResultsTabs();
+
 function foldIsShowing(renderer) {
   if (renderer === undefined || renderer === null) return;
   revealViewer(renderer);
@@ -2229,7 +2529,15 @@ function revealViewer(renderer) {
   } catch { /* a missing panel is a lost tab, not a lost fold */ }
   const container = document.getElementById("viewer-container");
   if (container === null) return;
-  if (getComputedStyle(container).display === "none") container.style.display = "flex";
+  // 🔴 CLEAR THE INLINE VALUE, NOT REPLACE IT WITH "flex". hideResults wrote
+  // `display: none`; handing back a concrete display made the box a flex
+  // container the stylesheet never asked for and, more importantly, nothing
+  // re-measured the canvas after the swap when the box had been 0x0 - the
+  // blank viewer this whole function is the guard against. The sheet owns
+  // how this element is displayed at every width.
+  if (getComputedStyle(container).display === "none") {
+    container.style.removeProperty("display");
+  }
   document.getElementById("canvasContainer")?.classList.add("has-structure");
   const top = document.getElementById("sequence-viewer-container");
   if (top !== null) top.style.display = "block";
@@ -7328,28 +7636,309 @@ document.addEventListener("localfold-runtime-stopped", (event) => {
   retireFolding(event.detail?.why ?? "the fold service has been stopped");
 });
 
-// Lightweight presentation controls for the workspace header. They only
-// affect navigation and theme; prediction/viewer control wiring is untouched.
-const themeToggle = document.getElementById("theme-toggle");
-if (themeToggle !== null) {
-  try {
-    if (localStorage.getItem("localfold-theme") === "dark") {
-      document.body.classList.add("lf-dark");
-      themeToggle.setAttribute("aria-pressed", "true");
-      themeToggle.textContent = "Light";
-    }
-  } catch { /* private browsing can disable storage; the control still works */ }
-  themeToggle.addEventListener("click", () => {
-    const dark = document.body.classList.toggle("lf-dark");
-    themeToggle.setAttribute("aria-pressed", String(dark));
-    themeToggle.textContent = dark ? "Light" : "Dark";
+/* ==========================================================================
+ * THE THEME IS AN ATTRIBUTE ON <html>, AND CHANGING IT CHANGES COLOURS ONLY.
+ *
+ * 🔴 ROOT CAUSE: the old toggle added and removed `body.lf-dark` from a click
+ * handler in this module, so it ran after first paint (a cream flash on every
+ * load for a dark-mode reader), and its label was the word "Dark"/"Light" -
+ * two names for one state, at the width of the longer.
+ *
+ * The attribute is set pre-paint by the inline script in index.html from
+ * localStorage or prefers-color-scheme. Everything else - the stylesheet, the
+ * viewer's clear colour, the heatmap ramp - reads the same attribute, so there
+ * is one source of truth and no class to keep in step.
+ *
+ * 🔴 AND THE TOGGLE MUST NOT TOUCH THE APP. It changes data-theme, the
+ * renderer's background, the cartoon's specular level and the map ramp - all
+ * presentation. It never re-renders the page, never clears results and never
+ * resets the selected model, which the old class-based rules could not have
+ * guaranteed because they were spread across forty-seven selectors.
+ * ========================================================================== */
+
+/** The theme as the page sees it. */
+function isDarkTheme() {
+  return document.documentElement.dataset.theme === "dark";
+}
+
+/** The viewer's clear colour, from the same token the sheet uses. */
+function viewerBackground() {
+  return isDarkTheme() ? "#1a1916" : "#ffffff";
+}
+
+/**
+ * One place that knows how each canvas follows the theme.
+ *
+ * 🔴 `renderer.backgroundColor` IS INLINE ON THE CANVAS (`canvas.style.background`),
+ * so it beats any stylesheet rule - setting only a CSS variable would leave the
+ * picture on white in dark mode.
+ */
+function applyTheme(dark, { persist = true } = {}) {
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  const toggle = document.getElementById("theme-toggle");
+  if (toggle !== null) {
+    toggle.setAttribute("aria-pressed", String(dark));
+    toggle.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+    const icon = toggle.querySelector("i");
+    if (icon !== null) icon.className = `fa-solid fa-${dark ? "sun" : "moon"}`;
+  }
+  if (persist) {
     try { localStorage.setItem("localfold-theme", dark ? "dark" : "light"); }
     catch { /* session-only theme is still useful */ }
-  });
+  }
+  // THE VIEWER. Background first, then a redraw: the clear colour is read when
+  // the next frame is drawn, so a resize/render pass has to follow it.
+  const renderer = currentRenderer();
+  if (renderer !== undefined) {
+    try {
+      renderer.backgroundColor = viewerBackground();
+      if (renderer.canvas !== undefined && renderer.canvas !== null) {
+        renderer.canvas.style.background = viewerBackground();
+      }
+      // 🔴 THE WHITE STREAKS ARE SPECULAR HIGHLIGHT ON THE CARTOON, and they
+      // read as glare on a near-black stage. Dark mode caps it; the reader's own
+      // value is remembered and handed back in light mode rather than lost.
+      if (dark) {
+        if (renderer._lfHighlight === undefined) renderer._lfHighlight = renderer.cartoonHighlight;
+        renderer.cartoonHighlight = Math.min(renderer.cartoonHighlight ?? 1, 0.35);
+      } else if (renderer._lfHighlight !== undefined) {
+        renderer.cartoonHighlight = renderer._lfHighlight;
+        delete renderer._lfHighlight;
+      }
+      renderer.cachedShadows = null;
+    } catch { /* a missing field is not worth losing the theme over */ }
+  }
+  primeCanvas("theme");
+  themeHeatmap();
+  if (renderer !== undefined) try { renderer.render?.("theme"); } catch { /* optional */ }
 }
+
+const themeToggle = document.getElementById("theme-toggle");
+themeToggle?.addEventListener("click", () => applyTheme(!isDarkTheme()));
+
+/* THE pLDDT BINS, FROM TOKENS.
+ * 🔴 `plddt` ON THIS BUILD IS A RAINBOW OVER 50-90, NOT the four bins readers
+ * expect, and the very-high blue it uses is dark enough to disappear on the
+ * dark stage. Registering a mode is the supported extension point - it goes into
+ * getAllValidColorModes(), so py2Dmol's own select accepts it - and mapping the
+ * one name here means every caller that asks for pLDDT gets the bins. */
+if (window.py2dmol_customColors !== undefined
+    && window.py2dmol_customColors.localfold === undefined) {
+  window.py2dmol_customColors.localfold = (value) => {
+    const score = Number(value);
+    if (!Number.isFinite(score)) return { r: 128, g: 128, b: 128 };
+    if (score >= 90) return isDarkTheme()
+      ? { r: 61, g: 130, b: 242 }   // #3d82f2 - bright enough on #1a1916
+      : { r: 13, g: 87, b: 211 };
+    if (score >= 70) return { r: 101, g: 203, b: 243 };  // #65cbf3
+    if (score >= 50) return { r: 255, g: 219, b: 19 };   // #ffdb13
+    return { r: 255, g: 125, b: 69 };                    // #ff7d45
+  };
+}
+
+/* ==========================================================================
+ * THE MAPS FOLLOW THE TOKENS TOO.
+ *
+ * 🔴 ROOT CAUSE OF THE GLARE: py2Dmol's PAE ramp is blue -> WHITE -> red,
+ * hard-coded in the bundle, so the middle of every matrix is pure white; the
+ * contact ramp starts at white as well. On the near-black stage both read as a
+ * lit panel. A heatmap's scale is `{vmin, vmax, ramp}` and `ramp` is replaced
+ * whenever a map is loaded, so this sets it - and says what the colours mean.
+ * ========================================================================== */
+
+/** Hex -> {r,g,b}; the vendor's own converter is not exposed. */
+function hexRgb(hex) {
+  const text = String(hex).replace("#", "");
+  const full = text.length === 3
+    ? text.split("").map((c) => c + c).join("")
+    : text;
+  const value = Number.parseInt(full, 16);
+  return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+}
+
+/** A piecewise-linear ramp through token-anchored stops. */
+function rampThrough(stops) {
+  return (value) => {
+    const t = Math.max(0, Math.min(1, Number(value) || 0));
+    let lower = stops[0];
+    let upper = stops[stops.length - 1];
+    for (let index = 0; index < stops.length - 1; index += 1) {
+      if (t >= stops[index][0] && t <= stops[index + 1][0]) {
+        lower = stops[index];
+        upper = stops[index + 1];
+        break;
+      }
+    }
+    const span = upper[0] - lower[0] || 1;
+    const mix = (t - lower[0]) / span;
+    const from = hexRgb(lower[1]);
+    const to = hexRgb(upper[1]);
+    return {
+      r: Math.round(from.r + (to.r - from.r) * mix),
+      g: Math.round(from.g + (to.g - from.g) * mix),
+      b: Math.round(from.b + (to.b - from.b) * mix),
+    };
+  };
+}
+
+/**
+ * The two ramps, expressed in tokens.
+ *
+ * PAE is 0..30 Å: cobalt to brick in light, bright blue to hot orange in dark -
+ * with a violet rather than a white midpoint, because a white midpoint is the
+ * glare being fixed. Contact is 0..1 and simply runs surface to accent.
+ */
+function themedRamp(key) {
+  const dark = isDarkTheme();
+  if (key === "contact") {
+    return rampThrough(dark
+      ? [[0, "#24221e"], [1, "#f08a72"]]
+      : [[0, "#f4f2ec"], [1, "#c2452d"]]);
+  }
+  return rampThrough(dark
+    ? [[0, "#3d82f2"], [0.5, "#8a6fd1"], [1, "#e0703a"]]
+    : [[0, "#3d55bd"], [0.5, "#f2f0ea"], [1, "#c2452d"]]);
+}
+
+/**
+ * The colour bar under the map: the same stops, as a gradient and as words.
+ *
+ * 🔴 THE MAP'S PANEL IS NOT THE PANEL'S STYLE. `mapEmpty` sits next to it inside
+ * `#heatmapWrap`, so the map page shows the empty sentence over a live picture
+ * until this reads the map's own state - which is where `setMaps` writes,
+ * because `updateVisibility` only flips the class. Read the wrap, not the
+ * container's display.
+ */
+function updateMapScaleUI(key) {
+  const bar = document.getElementById("mapColourBar");
+  const ticks = document.getElementById("mapBarTicks");
+  const track = document.getElementById("mapBarTrack");
+  const wrap = document.getElementById("heatmapWrap");
+  const map = document.getElementById("heatmapContainer");
+  if (bar === null || track === null) return;
+  const hasBytes = currentRenderer()?.heatmapRenderer?.bytes != null;
+  const visible = wrap !== null && wrap.offsetParent !== null && map !== null
+    && map.style.display !== "none" && hasBytes;
+  bar.hidden = !visible;
+  if (ticks !== null) ticks.hidden = !visible;
+  if (!visible) return;
+  const empty = document.getElementById("mapEmpty");
+  if (empty !== null) empty.hidden = true;
+  const contact = key === "contact";
+  const min = document.getElementById("mapBarMin");
+  const mid = document.getElementById("mapBarMid");
+  const max = document.getElementById("mapBarMax");
+  if (min !== null) min.textContent = contact ? "0" : "0 Å";
+  if (mid !== null) mid.textContent = contact ? "0.5" : "15";
+  if (max !== null) max.textContent = contact ? "1" : "30 Å";
+  const stops = contact
+    ? (isDarkTheme() ? ["#24221e", "#f08a72"] : ["#f4f2ec", "#c2452d"])
+    : (isDarkTheme()
+      ? ["#3d82f2", "#8a6fd1", "#e0703a"]
+      : ["#3d55bd", "#f2f0ea", "#c2452d"]);
+  track.style.background = `linear-gradient(90deg, ${stops.join(", ")})`;
+}
+
+/**
+ * Put the themed ramp on the live heatmap and make it redraw.
+ *
+ * 🔴 THERE IS NO HOOK TO REACH THE RENDERER WITH. The renderer caches its
+ * quantised picture against a signature that includes the colour mode, the
+ * colourblind flag and vmin/vmax - but NOT the ramp - and `colorChangeHandler`
+ * only listens for `py2dmol-color-change`. The class's own `setMaps` has no
+ * public entry either (`setData`/`setMaps` are prototype methods the wrapper
+ * never exposes). So this re-dispatches the event the handler already listens
+ * for after swapping the ramp; it rebuilds the base image from the SAME bytes,
+ * so nothing about the matrix changes except its colours.
+ */
+function retintHeatmap(heatmap, key, force) {
+  heatmap.scale = { ...(heatmap.scale ?? {}), ramp: themedRamp(key) };
+  if (heatmap.bytes !== null && heatmap.bytes !== undefined) {
+    heatmap._scaleSig = null;
+    heatmap.baseCanvas = null;
+    heatmap.scheduleRender?.();
+    if (force === true) heatmap.colorChangeHandler?.();
+  }
+}
+
+/** Put the themed ramp on the live heatmap renderer. */
+function themeHeatmap() {
+  const heatmap = currentRenderer()?.heatmapRenderer;
+  if (heatmap === undefined || heatmap === null) return;
+  try {
+    retintHeatmap(heatmap, heatmap.mapKey ?? "pae", true);
+    updateMapScaleUI(heatmap.mapKey ?? "pae");
+  } catch { /* the panel is optional */ }
+}
+
+/** Re-theme the map whenever it is told about a frame. */
+function installHeatmapTheming() {
+  if (window.__localfoldHeatmapThemed === true) return;
+  window.__localfoldHeatmapThemed = true;
+  const api = window.Heatmap;
+  if (api !== undefined && typeof api.updateFrame === "function") {
+    const original = api.updateFrame;
+    api.updateFrame = function (renderer, object, frameIndex) {
+      const result = original.apply(this, arguments);
+      const heatmap = renderer?.heatmapRenderer;
+      if (heatmap !== undefined && heatmap !== null) {
+        retintHeatmap(heatmap, heatmap.mapKey ?? "pae", false);
+        updateMapScaleUI(heatmap.mapKey ?? "pae");
+      }
+      return result;
+    };
+  }
+  const canvas = document.getElementById("heatmapCanvas");
+  const tip = document.getElementById("mapTooltip");
+  if (canvas !== null && tip !== null) {
+    canvas.addEventListener("mousemove", (event) => {
+      const heatmap = currentRenderer()?.heatmapRenderer;
+      if (heatmap === undefined || heatmap === null || !heatmap.bytes || !heatmap.n) {
+        tip.hidden = true;
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor(((event.clientX - rect.left) / rect.width) * heatmap.n);
+      const y = Math.floor(((event.clientY - rect.top) / rect.height) * heatmap.n);
+      if (x < 0 || y < 0 || x >= heatmap.n || y >= heatmap.n) {
+        tip.hidden = true;
+        return;
+      }
+      const scale = heatmap.scale ?? {};
+      const low = Number(scale.vmin) || 0;
+      const high = Number(scale.vmax) || 1;
+      const value = low + (heatmap.bytes[(y * heatmap.n) + x] / 255) * (high - low);
+      const contact = heatmap.mapKey === "contact";
+      tip.textContent = `scored ${x + 1} / aligned ${y + 1}: `
+        + `${value.toFixed(contact ? 2 : 1)}${contact ? "" : " Å"}`;
+      tip.style.left = `${event.clientX - rect.left + 12}px`;
+      tip.style.top = `${event.clientY - rect.top + 12}px`;
+      tip.hidden = false;
+    });
+    canvas.addEventListener("mouseleave", () => { tip.hidden = true; });
+  }
+}
+
+installHeatmapTheming();
+
+/* The attribute was set before first paint; bring the header control and the
+   canvases in line with it now, and again once the viewer exists (it is built
+   on DOMContentLoaded, after this module runs). */
+applyTheme(isDarkTheme(), { persist: false });
+document.addEventListener("DOMContentLoaded", () => applyTheme(isDarkTheme(), { persist: false }));
+
+// 🔴 NO scrollIntoView ANY MORE. It moved the VIEWPORT to the model row -
+// the one navigation on the page that did, and on the desktop shell there is
+// no viewport scroll to do: the rail scrolls itself if the row is out of view,
+// and focus() with preventScroll leaves the window alone.
 document.getElementById("model-shortcut")?.addEventListener("click", () => {
   const model = document.getElementById("model-family");
-  model?.scrollIntoView({ behavior: "smooth", block: "center" });
+  // The row is expanded first; a collapsed row's select is display:none and
+  // cannot take focus at all.
+  const options = document.getElementById("foldOptions");
+  if (options !== null && options.classList.contains("is-advanced-collapsed")) {
+    document.getElementById("advanced-toggle")?.click();
+  }
   model?.focus({ preventScroll: true });
 });
 
@@ -7368,8 +7957,15 @@ document.addEventListener("fullscreenchange", () => {
   if (fullscreenButton === null) return;
   const active = document.fullscreenElement === document.getElementById("viewer-container");
   fullscreenButton.setAttribute("aria-pressed", String(active));
-  const label = fullscreenButton.querySelector("span");
-  if (label) label.innerHTML = `<i class="fa-solid fa-${active ? "compress" : "expand"}"></i>${active ? "Exit full screen" : "Full screen"}`;
+  // 🔴 CHANGE THE ICON AND THE WORD, NOT THE WHOLE SPAN. This used to write
+  // innerHTML over the button's <span>, which deleted the .tool-label element
+  // the narrow-toolbar rule hides - so after one full-screen round trip the
+  // label came back as bare text at every width, including the collapsed
+  // icon-only strip.
+  const icon = fullscreenButton.querySelector("i");
+  if (icon !== null) icon.className = `fa-solid fa-${active ? "compress" : "expand"}`;
+  const label = fullscreenButton.querySelector(".tool-label");
+  if (label !== null) label.textContent = active ? "Exit full screen" : "Full screen";
 });
 
 const advancedToggle = document.getElementById("advanced-toggle");
@@ -7393,7 +7989,10 @@ document.querySelectorAll("[data-example]").forEach((button) => {
     if (!sequence || !field) return;
     field.value = sequence;
     field.dispatchEvent(new Event("input", { bubbles: true }));
-    field.focus();
+    // 🔴 preventScroll. This focus follows a DOM write (the textarea is
+    // resized by fitSequenceTextareas on the input event), and a plain focus
+    // scrolls every ancestor - including the window - to meet the caret.
+    field.focus({ preventScroll: true });
   });
 });
 

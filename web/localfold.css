@@ -1977,6 +1977,21 @@ footer { grid-column: 1 / -1; }
   background: #101713; pointer-events: none;
 }
 #canvasContainer.has-structure::after { display: none; }
+/* THE CONTEXT-LOST NOTICE. A restored WebGL context is not a restored drawing,
+   so this offers the one action that works rather than pretending a redraw is
+   enough. It sits over the canvas and never moves the box around it. */
+#viewer-lost {
+  position: absolute; inset: auto 0 8px 0; z-index: 3;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin: 0; padding: 0; pointer-events: none;
+}
+#viewer-lost[hidden] { display: none; }
+#viewer-lost p {
+  margin: 0; padding: 4px 10px; border-radius: 2px;
+  background: var(--lf-paper); color: var(--lf-ink);
+  border: 1px solid var(--lf-line); font-size: 12px;
+}
+#viewer-lost button { pointer-events: auto; }
 @media (max-width: 1100px) {
   body.bg-gray-50 > .mx-auto.page-width {
     grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
@@ -1997,29 +2012,49 @@ footer { grid-column: 1 / -1; }
 }
 
 /* Dark mode is an optional workspace theme, not a second application. */
-body.lf-dark { background: #111815 !important; color: #e4ece7 !important; }
-body.lf-dark .container-box,
-body.lf-dark #status-row { background: #1b2520 !important; border-color: #35453c !important; color: #e4ece7; }
-body.lf-dark #fold-panel, body.lf-dark #upload-options-container { background: #1b2520 !important; }
-body.lf-dark #sequence, body.lf-dark #target,
-body.lf-dark input, body.lf-dark textarea, body.lf-dark select {
+html[data-theme="dark"] { background: #111815 !important; color: #e4ece7 !important; }
+html[data-theme="dark"] .container-box,
+html[data-theme="dark"] #status-row { background: #1b2520 !important; border-color: #35453c !important; color: #e4ece7; }
+html[data-theme="dark"] #fold-panel, html[data-theme="dark"] #upload-options-container { background: #1b2520 !important; }
+html[data-theme="dark"] #sequence, html[data-theme="dark"] #target,
+html[data-theme="dark"] input, html[data-theme="dark"] textarea, html[data-theme="dark"] select {
   color: #e4ece7 !important; background-color: #121a16 !important; border-color: #43564a !important;
 }
-body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) {
+html[data-theme="dark"] button:not(.btn-primary), html[data-theme="dark"] .btn:not(.btn-primary) {
   color: #dce8e0; background-color: #25332b; border-color: #43564a;
 }
-body.lf-dark .page-head-fold { border-color: #35453c; }
-body.lf-dark .page-head-fold h1 { color: #9ed2b5; }
-body.lf-dark #status-line, body.lf-dark .fetch-option-title { color: #a8b8ae; }
-body.lf-dark #canvasContainer { border-color: #35453c; }
-body.lf-dark #canvasContainer::after { background: #101713; }
-body.lf-dark footer { color: #a8b8ae; border-color: #35453c; }
+html[data-theme="dark"] .page-head-fold { border-color: #35453c; }
+html[data-theme="dark"] .page-head-fold h1 { color: #9ed2b5; }
+html[data-theme="dark"] #status-line, html[data-theme="dark"] .fetch-option-title { color: #a8b8ae; }
+html[data-theme="dark"] #canvasContainer { border-color: #35453c; }
+html[data-theme="dark"] #canvasContainer::after { background: #101713; }
+html[data-theme="dark"] footer { color: #a8b8ae; border-color: #35453c; }
 .workspace-tagline { margin: 0 auto 0 14px; color: var(--lf-muted); font-size: 15px; }
-body.lf-dark .workspace-tagline { color: #a8b8ae; }
-#viewer-container:fullscreen { width: 100vw !important; height: 100vh; padding: 14px; overflow: auto; background: var(--lf-paper); }
-body.lf-dark #viewer-container:fullscreen { background: #111815; }
-#viewer-container:fullscreen #mainContainer { height: 100%; }
-#viewer-container:fullscreen #canvasContainer { height: calc(100vh - 100px) !important; }
+html[data-theme="dark"] .workspace-tagline { color: #a8b8ae; }
+/* FULL SCREEN IS THE VIEWER'S OWN BOX, NOT THE PAGE. The rule is outside the
+   media query because it has to hold at every width: :fullscreen already takes
+   the element out of flow and sizes it to the viewport, so this states the
+   padding and lets the grid inside fill it. It used to add
+   `height: calc(100vh - 100px)` to the canvas, which subtracted a strip that is
+   not there and letterboxed the picture at every width. */
+#viewer-container:fullscreen {
+  width: 100% !important; height: 100% !important; max-width: none !important;
+  margin: 0; padding: 10px 12px; overflow: hidden;
+  background: var(--lf-paper); box-sizing: border-box;
+}
+html[data-theme="dark"] #viewer-container:fullscreen { background: var(--lf-paper); }
+#viewer-container:fullscreen #mainContainer { height: 100%; min-height: 0; }
+#viewer-container:fullscreen #viewerColumn {
+  position: relative; height: 100%; min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+#viewer-container:fullscreen .viewer-heading { display: none; }
+#viewer-container:fullscreen #viewer-toolbar {
+  position: absolute; top: 4px; left: 6px; right: 6px; z-index: 5;
+  flex-wrap: nowrap; gap: 4px; min-height: 0; background: transparent;
+}
+#viewer-container:fullscreen #canvasContainer { height: 100% !important; min-height: 0; }
+#viewer-container:fullscreen #rightPanelsContainer { max-height: 100%; overflow-y: auto; }
 @media (max-width: 760px) { .workspace-tagline { display: none; } }
 
 /* Editorial finish: warm paper, ink, and a single cobalt action colour. */
@@ -2051,21 +2086,23 @@ body.bg-gray-50 { background: var(--lf-paper); color: var(--lf-ink); }
 .confidence-section > .eyebrow { margin: 8px 2px; }
 #viewer-container #rightPanelContainer { background: transparent; border: 0; padding: 0; box-shadow: none; }
 #viewer-container #canvasContainer { border-color: #252a31; }
-body.lf-dark {
+html[data-theme="dark"] {
   --lf-paper: #14161a; --lf-ink: #e8e9ed; --lf-muted: #a4a7b0; --lf-line: #30343c;
   background: #14161a !important; color: #e8e9ed !important;
 }
-body.lf-dark .container-box, body.lf-dark #status-row,
-body.lf-dark #fold-panel, body.lf-dark #upload-options-container { background: #1d2026 !important; border-color: #343840 !important; color: #e8e9ed; }
-body.lf-dark .page-head-fold { border-color: #343840; }
-body.lf-dark .page-head-fold h1, body.lf-dark .panel-intro h2, body.lf-dark .results-heading h2 { color: #f0f1f4; }
-body.lf-dark .page-head-fold h1::after { background: repeating-linear-gradient(135deg, transparent 0 5px, #818795 5px 7px, transparent 7px 12px); }
-body.lf-dark input, body.lf-dark textarea, body.lf-dark select { background: #15171c !important; color: #e8e9ed !important; border-color: #444953 !important; }
-body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) { background: #252932; color: #e4e5e9; border-color: #444953; }
-body.lf-dark .panel-intro p, body.lf-dark .workspace-tagline, body.lf-dark .viewer-heading { color: #a4a7b0; }
-body.lf-dark .eyebrow { color: #a4a7b0; }
-body.lf-dark #status-line { color: #c5c8cf; }
-body.lf-dark #viewer-container:fullscreen { background: #14161a; }
+html[data-theme="dark"] .container-box, html[data-theme="dark"] #status-row,
+html[data-theme="dark"] #fold-panel, html[data-theme="dark"] #upload-options-container { background: #1d2026 !important; border-color: #343840 !important; color: #e8e9ed; }
+html[data-theme="dark"] .page-head-fold { border-color: #343840; }
+html[data-theme="dark"] .page-head-fold h1, html[data-theme="dark"] .panel-intro h2, html[data-theme="dark"] .results-heading h2 { color: #f0f1f4; }
+html[data-theme="dark"] .page-head-fold h1::after { background: repeating-linear-gradient(135deg, transparent 0 5px, #818795 5px 7px, transparent 7px 12px); }
+html[data-theme="dark"] input, html[data-theme="dark"] textarea, html[data-theme="dark"] select { background: #15171c !important; color: #e8e9ed !important; border-color: #444953 !important; }
+html[data-theme="dark"] button:not(.btn-primary), html[data-theme="dark"] .btn:not(.btn-primary) { background: #252932; color: #e4e5e9; border-color: #444953; }
+html[data-theme="dark"] .panel-intro p, html[data-theme="dark"] .workspace-tagline, html[data-theme="dark"] .viewer-heading { color: #a4a7b0; }
+html[data-theme="dark"] .eyebrow { color: #a4a7b0; }
+html[data-theme="dark"] #status-line { color: #c5c8cf; }
+/* Token-driven: the full-screen box is the viewer's paper, whichever theme
+   is up. The three stacked hard-coded dark values disagreed. */
+html[data-theme="dark"] #viewer-container:fullscreen { background: var(--lf-paper); }
 @media (max-width: 760px) {
   .viewer-heading { min-height: 25px; }
   #downloads[style*="flex"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2089,9 +2126,9 @@ body.lf-dark #viewer-container:fullscreen { background: #14161a; }
   color: #424955; background: #f6f6f7; font: inherit; font-size: 11px; font-weight: 500; line-height: 1.2; cursor: pointer;
 }
 .example-chip:hover { border-color: #8795d4; color: #354cac; background: #f1f3ff; }
-body.lf-dark .advanced-toggle { border-color: #343840; }
-body.lf-dark .example-chip { background: #252932; border-color: #444953; color: #e4e5e9; }
-body.lf-dark .example-chip:hover { border-color: #8999ee; color: #cbd3ff; }
+html[data-theme="dark"] .advanced-toggle { border-color: #343840; }
+html[data-theme="dark"] .example-chip { background: #252932; border-color: #444953; color: #e4e5e9; }
+html[data-theme="dark"] .example-chip:hover { border-color: #8999ee; color: #cbd3ff; }
 
 /* Reference direction: the restrained editorial language of the supplied
    CloudyAI page—paper, rules, serif display type, monospaced metadata, and one
@@ -2193,32 +2230,43 @@ body.bg-gray-50 > .mx-auto.page-width {
 }
 .results-heading { border-top: 1px solid var(--lf-ink); padding: 12px 0 7px; }
 .results-heading h2 { font-size: 30px; }
-#viewer-container #canvasContainer { border: 1px solid #292a2a !important; }
-#canvasContainer::after { background: #151716; color: #e7e5df; font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
+/* THE STAGE'S BORDER IS A TOKEN, WITH !IMPORTANT ONLY BECAUSE THIS RULE IS
+   THE ONE THAT OUTRANKS THE VENDOR'S OWN `resize: both` BOX AND THE OTHER
+   STACKED THEME BLOCKS. Three earlier dark palettes disagreed about the box;
+   this is the one that wins. */
+html[data-theme="dark"] #viewer-container #canvasContainer {
+  background: var(--viewer-bg) !important;
+  border: 1px solid var(--border) !important;
+}
+html[data-theme="light"] #viewer-container #canvasContainer {
+  background: var(--viewer-bg) !important;
+  border: 1px solid var(--border) !important;
+}
+#canvasContainer::after { background: var(--viewer-bg); color: var(--ink-muted); font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 #downloads[style*="flex"] { gap: 0; }
 #downloads .btn { border: 0 !important; border-bottom: 1px solid var(--lf-line) !important; background: transparent !important; }
 #downloads .btn:last-child { border-bottom: 0 !important; }
 #status-row { padding: 9px 12px; }
 #status-message { color: var(--lf-ink); }
-body.lf-dark {
+html[data-theme="dark"] {
   --lf-paper: #171817; --lf-ink: #e9e6df; --lf-muted: #aaa69d; --lf-line: #45443f;
   --lf-forest: #d07860; --lf-forest-dark: #e08e76; --lf-mint: #392520;
   background: #171817 !important; color: #e9e6df !important;
 }
-body.lf-dark #fold-panel, body.lf-dark #upload-options-container,
-body.lf-dark #status-row, body.lf-dark #viewer-container #rightPanelContainer,
-body.lf-dark #predictionScoresBox, body.lf-dark #downloads,
-body.lf-dark #plddtContainer, body.lf-dark #heatmapContainer,
-body.lf-dark #controlsContainer { background: #20211f !important; border-color: #45443f !important; color: #e9e6df; }
-body.lf-dark .page-head-fold { border-color: #45443f; }
-body.lf-dark .page-head-fold h1, body.lf-dark .panel-intro h2,
-body.lf-dark .results-heading h2 { color: #e9e6df; }
-body.lf-dark #sequence, body.lf-dark #target, body.lf-dark input,
-body.lf-dark textarea, body.lf-dark select { background: #171817 !important; color: #e9e6df !important; border-color: #57564f !important; }
-body.lf-dark .example-chip, body.lf-dark button:not(.btn-primary), body.lf-dark .btn:not(.btn-primary) { background: transparent; color: #e9e6df; border-color: #57564f; }
-body.lf-dark .example-chip:hover { color: #f0aa95; border-color: #d07860; background: #30231f; }
-body.lf-dark #downloads .btn { border-color: #45443f !important; }
-body.lf-dark #viewer-container:fullscreen { background: #171817; }
+html[data-theme="dark"] #fold-panel, html[data-theme="dark"] #upload-options-container,
+html[data-theme="dark"] #status-row, html[data-theme="dark"] #viewer-container #rightPanelContainer,
+html[data-theme="dark"] #predictionScoresBox, html[data-theme="dark"] #downloads,
+html[data-theme="dark"] #plddtContainer, html[data-theme="dark"] #heatmapContainer,
+html[data-theme="dark"] #controlsContainer { background: #20211f !important; border-color: #45443f !important; color: #e9e6df; }
+html[data-theme="dark"] .page-head-fold { border-color: #45443f; }
+html[data-theme="dark"] .page-head-fold h1, html[data-theme="dark"] .panel-intro h2,
+html[data-theme="dark"] .results-heading h2 { color: #e9e6df; }
+html[data-theme="dark"] #sequence, html[data-theme="dark"] #target, html[data-theme="dark"] input,
+html[data-theme="dark"] textarea, html[data-theme="dark"] select { background: #171817 !important; color: #e9e6df !important; border-color: #57564f !important; }
+html[data-theme="dark"] .example-chip, html[data-theme="dark"] button:not(.btn-primary), html[data-theme="dark"] .btn:not(.btn-primary) { background: transparent; color: #e9e6df; border-color: #57564f; }
+html[data-theme="dark"] .example-chip:hover { color: #f0aa95; border-color: #d07860; background: #30231f; }
+html[data-theme="dark"] #downloads .btn { border-color: #45443f !important; }
+html[data-theme="dark"] #viewer-container:fullscreen { background: var(--lf-paper); }
 @media (max-width: 760px) {
   body.bg-gray-50 { padding: 8px !important; }
   .page-head-fold { min-height: 58px; }
@@ -2233,43 +2281,117 @@ body.lf-dark #viewer-container:fullscreen { background: #171817; }
 }
 .model-memory-advisory[data-level="warning"] { border-color: #b5513d; color: #8d3d2e; background: #f7e9e4; }
 .model-memory-advisory[data-level="ok"] { border-color: #77766f; }
-body.lf-dark .model-memory-advisory { background: #292a27; color: #c2beb4; }
-body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; background: #32231f; border-color: #d07860; }
-@media (min-width: 1200px) {
+html[data-theme="dark"] .model-memory-advisory { background: #292a27; color: #c2beb4; }
+html[data-theme="dark"] .model-memory-advisory[data-level="warning"] { color: #f0ab98; background: #32231f; border-color: #d07860; }
+/* ===========================================================================
+   THE DESKTOP APP SHELL (>= 1100px).
+
+   WHY A SHELL AT ALL. The page used to be one long document that scrolled:
+   press Fold, `hideResults()` set the viewer and the panels to display:none,
+   the document shrank by half a screen, the browser's scroll anchoring moved
+   the window to keep the reader's pixel under the caret - and on completion
+   revealViewer put the content back and moved it again. Nothing called
+   scrollTo; the window still travelled. The fix is structural, not a
+   scroll-restore hack: the window never scrolls. The head is one row, the
+   three columns below it each own their overflow, and every column is
+   height-constrained by the viewport rather than by its content.
+
+   THE COLUMNS: left rail (molecule + loader), centre (status above, 3D viewer
+   below), right (analysis). Inside #viewer-container the existing two-column
+   grid is what puts the analysis beside the structure, so the shell's second
+   column holds both and the third is #rightPanelsContainer's column.
+
+   Every region that GROWS while it is on screen - the results column, the
+   input rail - is overflow-anchor:none as well, so a late panel cannot pull
+   the reader's position with it.
+   =========================================================================== */
+@media (min-width: 1100px) {
   html, body { height: 100%; }
-  body.bg-gray-50 { height: 100dvh; min-height: 0; overflow: hidden; padding: 10px 18px !important; }
+  /* 🔴 BORDER-BOX AND NO MARGIN, OR THE SHELL IS TALLER THAN THE VIEWPORT.
+     `height: 100dvh` with content-box sizing plus 8px of padding made the body
+     736px on a 720px screen, and the browser's own 8px body margin put it at
+     768 - a vertical scrollbar on a page whose whole point is that it does not
+     scroll. */
+  body.bg-gray-50 {
+    height: 100dvh; min-height: 0; overflow: hidden;
+    margin: 0; box-sizing: border-box;
+    padding: 8px 14px !important;
+  }
   body.bg-gray-50 > .mx-auto.page-width {
-    width: 100% !important; max-width: none; height: 100%; min-height: 0;
-    grid-template-columns: minmax(340px, 27vw) minmax(0, 1fr);
-    grid-template-rows: 72px 50px minmax(0, 1fr) 132px min-content;
-    gap: 10px 22px;
+    width: 100% !important; max-width: none;
+    height: 100%; min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(320px, 26%) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    gap: 10px 18px;
     align-items: stretch;
   }
-  .page-head-fold { grid-column: 1 / -1; grid-row: 1; }
-  #fold-panel { grid-column: 1; grid-row: 2 / 4; max-height: none; min-height: 0; height: 100%; overflow-y: auto; }
-  #upload-options-container { grid-column: 1; grid-row: 4; max-height: 132px; height: 100%; overflow: auto; }
-  #status-row { grid-column: 2; grid-row: 2; min-height: 0; margin: 0; }
-  #viewer-container { grid-column: 2; grid-row: 3 / 5; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+  /* THE HEAD, AND IT CANNOT GROW. Two rows of controls plus a 42px title
+     used to make this 72px+; at 56px the title takes one line and the tagline
+     is the first thing cut. A head that grows pushes the whole shell's first
+     row taller and moves everything below it. */
+  .page-head-fold {
+    grid-column: 1 / -1; grid-row: 1;
+    min-height: 0; max-height: 56px; overflow: hidden;
+    padding: 6px 0 7px; margin: 0;
+  }
+  .page-head-fold h1 { font-size: clamp(24px, 2.4vw, 32px); }
+  .workspace-tagline {
+    max-width: 46ch; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: 12px;
+  }
+  /* LEFT RAIL. It scrolls itself; the window does not. */
+  .app-rail {
+    grid-column: 1; grid-row: 2 / 7;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 0; overflow-y: auto; overflow-x: hidden;
+    overscroll-behavior: contain; overflow-anchor: none;
+    padding-right: 2px;
+  }
+  #fold-panel {
+    width: 100% !important; margin: 0 !important; max-height: none;
+    min-height: 0; flex: 0 1 auto; overflow: visible;
+  }
+  #upload-options-container {
+    width: 100% !important; margin: 0 !important;
+    flex: 0 0 auto; overflow: hidden;
+  }
+  /* CENTRE: status block, then the viewer. */
+  #status-col { grid-column: 2; grid-row: 2; min-width: 0; }
+  #status-row { min-height: 56px; margin: 0; }
+  #session { margin-top: 6px; }
+  #viewer-container {
+    grid-column: 2; grid-row: 3;
+    min-width: 0; min-height: 0; height: 100%; max-height: 100%;
+    overflow: hidden; display: block;
+  }
   #viewer-container #mainContainer {
     display: grid; width: 100%; height: 100%; min-width: 0; min-height: 0;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 32%);
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 34%);
     align-items: stretch; gap: 14px;
   }
   #viewer-container #viewerColumn {
-    display: grid; grid-template-rows: 30px minmax(0, 1fr) auto;
+    display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto;
     width: 100%; height: 100%; min-width: 0; min-height: 0; gap: 8px;
   }
+  /* FIXED VIEWER HEIGHT, which is the shell row. The canvas is never sized
+     by its content and never by a resize handle, so nothing around it can
+     shift when a model lands. */
   #viewer-container #canvasContainer {
     width: 100% !important; height: 100% !important; min-width: 0; min-height: 0;
-    max-height: none; aspect-ratio: auto; resize: none;
+    max-height: none; aspect-ratio: auto; resize: none; overflow: hidden;
   }
   #viewer-container #canvas,
   #viewer-container .py2dmol-slot--1 > .py2dmol-slot-body {
     width: 100% !important; height: 100% !important; min-width: 0; min-height: 0;
   }
+  /* THE ANALYSIS COLUMN SCROLLS ITSELF. Its panels arrive at different times
+     during a fold; with the window locked, their arrival can only move this
+     column, which is exactly what a reader expects. */
   #viewer-container #rightPanelsContainer {
     display: flex; width: 100%; min-width: 0; min-height: 0; max-height: 100%;
     overflow-y: auto; overflow-x: hidden; align-self: stretch; gap: 10px;
+    overscroll-behavior: contain; overflow-anchor: none;
   }
   #viewer-container #rightPanelContainer,
   #viewer-container #binding-results-container { width: 100%; min-width: 0; }
@@ -2277,48 +2399,64 @@ body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; back
   #viewer-container .py2dmol-slot--2 > .py2dmol-slot-body {
     width: 100% !important; max-width: 100%; min-width: 0;
   }
+  /* RESERVED PLOT SPACE. The PAE matrix is square and always will be, and
+     the confidence card is four cells: their boxes are sized before the data
+     arrives, so showing a result does not reflow the column around it. */
   #viewer-container #heatmapContainer { aspect-ratio: 1 / 1; }
-  #sequence-viewer-container { grid-column: 1 / -1; grid-row: 5; max-height: 22vh; overflow: auto; }
-  #msa-buttons { grid-column: 1 / -1; }
-  footer { grid-column: 1 / -1; }
-  #viewer-container:fullscreen {
-    position: fixed; inset: 0; z-index: 9999; width: 100vw !important; height: 100dvh !important;
-    max-width: none !important; margin: 0; padding: 18px; overflow: hidden;
-    background: var(--lf-paper);
+  #predictionScoresBox { min-height: 92px; }
+  #plddtContainer { min-height: 180px; }
+  #downloads { min-height: 116px; }
+  #sequence-viewer-container {
+    grid-column: 2; grid-row: 4; width: 100% !important;
+    max-height: 22vh; overflow: auto; overscroll-behavior: contain;
   }
-  #viewer-container:fullscreen #mainContainer { grid-template-columns: minmax(0, 1fr) minmax(340px, 28vw); }
-  #viewer-container:fullscreen #viewerColumn { grid-template-rows: 32px minmax(0, 1fr) auto; }
+  #msa-buttons { grid-column: 2; grid-row: 5; width: 100% !important; }
+  footer { grid-column: 1 / -1; grid-row: 6; }
+
+  /* FULL SCREEN IS THE VIEWER'S OWN BOX MADE BIG, NOT THE PAGE MADE BLANK.
+     🔴 ROOT CAUSE OF THE BROKEN FULL-SCREEN LAYOUT: the old rule wrote
+     `position: fixed; inset: 0` on top of the grid. A fixed box inside an
+     ancestor that creates a containing block is placed against THAT ancestor,
+     not the viewport, and the 600x600 canvas rules underneath were never
+     re-measured - so the picture kept its small size inside a large frame.
+     :fullscreen already takes the element out of flow and sizes it to the
+     viewport; the rule states a size and nothing else.
+     🔴 AND THE TOOLBAR IS AN OVERLAY INSIDE THE BOX. It is the viewer's own
+     strip; docking it above the canvas in full screen would leave the canvas
+     the full height minus the strip and the picture letterboxed for no reason.
+     */
+  /* At shell widths the analysis column keeps its share of the big box; below
+     them the base rules stack it, which is what the narrow layout already does. */
+  #viewer-container:fullscreen #mainContainer {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 32%);
+  }
 }
 
-/* Desktop workspace correction: the sequence is a real second row in the
-   entity grid, not whatever pixels remain beside four buttons. Let the page
-   grow and scroll; only the 3D canvas itself is viewport-fitted. */
-@media (min-width: 1200px) {
-  body.bg-gray-50 {
-    height: auto; min-height: 100vh; overflow-x: hidden; overflow-y: auto;
-    padding: 10px 18px 24px !important;
-  }
+/* BELOW THE SHELL: the columns stack and the page scrolls again, because a
+   narrow window cannot show three columns at once. The viewer keeps a real
+   height rather than collapsing to its content. */
+@media (max-width: 1099.98px) {
+  body.bg-gray-50 { height: auto; min-height: 100vh; overflow-y: auto; }
   body.bg-gray-50 > .mx-auto.page-width {
-    height: auto; min-height: 100vh;
-    grid-template-columns: minmax(390px, 28vw) minmax(0, 1fr);
-    grid-template-rows: 72px auto minmax(640px, auto) auto auto;
-    align-items: stretch;
+    display: flex; flex-direction: column; gap: 10px;
+    height: auto; min-height: 0;
   }
-  #fold-panel { max-height: none; min-height: 0; height: 100%; overflow: visible; }
-  #upload-options-container { max-height: none; height: auto; overflow: visible; }
-  #viewer-container { min-height: 640px; height: 100%; overflow: visible; }
-  #viewer-container #mainContainer {
-    min-height: 640px; height: 100%;
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 29%);
-    align-items: stretch;
+  .app-rail { display: contents; }
+  .page-head-fold,
+  #status-col, #viewer-container, #sequence-viewer-container, #msa-buttons,
+  footer { width: 100% !important; }
+  #viewer-container #mainContainer { grid-template-columns: minmax(0, 1fr); }
+  #viewer-container #canvasContainer {
+    height: clamp(320px, 55dvh, 560px) !important; min-height: 320px; resize: none;
   }
-  #viewer-container #viewerColumn { min-height: 640px; }
-  #viewer-container #canvasContainer { min-height: 0; }
-  #viewer-container #rightPanelsContainer { min-height: 0; overflow-x: hidden; overflow-y: auto; }
-  #viewer-container #rightPanelContainer { min-width: 0; }
-  #viewer-container #heatmapContainer,
-  #viewer-container .py2dmol-slot--2 > .py2dmol-slot-body { width: 100% !important; max-width: 100%; }
-  #viewer-container .py2dmol-slot--1 > .py2dmol-slot-body { width: 100% !important; }
+  #viewer-container #rightPanelsContainer { overflow: visible; max-height: none; }
+  #viewer-container #heatmapContainer { aspect-ratio: 1 / 1; }
+  #sequence-viewer-container { max-height: none; }
+}
+
+/* The desktop entity-row layout, which needs the rail's full width to read as
+   a form rather than a wrapped pile. */
+@media (min-width: 1100px) {
   .entity-row:not(.entity-row-ligand):not(.entity-row-link) {
     grid-template-columns: minmax(150px, 1fr) 60px 34px 34px;
     grid-template-rows: auto auto;
@@ -2340,16 +2478,487 @@ body.lf-dark .model-memory-advisory[data-level="warning"] { color: #f0ab98; back
     height: clamp(190px, 34vh, 290px); min-height: 190px; line-height: 1.5;
     white-space: pre-wrap; overflow-wrap: anywhere;
   }
-  #viewer-container:fullscreen {
-    position: fixed; inset: 0; z-index: 9999; width: 100vw !important;
-    height: 100dvh !important; min-height: 0; max-width: none !important;
-    margin: 0; padding: 14px; overflow: hidden;
-  }
-  #viewer-container:fullscreen #mainContainer {
-    height: 100%; min-height: 0;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 30vw);
-  }
-  #viewer-container:fullscreen #viewerColumn { height: 100%; min-height: 0; }
-  #viewer-container:fullscreen #canvasContainer { height: 100% !important; min-height: 0; }
-  #viewer-container:fullscreen #rightPanelsContainer { max-height: 100%; overflow-y: auto; }
 }
+
+/* ===========================================================================
+   THE VIEWER'S TOOLBAR, AND ONE TAB SET FOR THE RESULTS.
+
+   The seven controls that act on the picture - Orient, Focus, Spin, Style,
+   Clip, Capture, Full screen - sit on the viewer's top edge. They were the
+   head of the Results column, above the object picker and the analysis, which
+   put the camera controls furthest from the camera and left the centre pane
+   competing with a tab strip of py2Dmol's own.
+   =========================================================================== */
+#viewer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+}
+#viewer-toolbar .tool { flex: 0 0 auto; }
+/* THE VENDOR'S OWN FULLSCREEN BUTTON IS THE SECOND ONE. installFullscreen adds
+   a .py2dmol-fs-btn to the canvas box; this page has its own in the toolbar, so
+   the duplicate is hidden rather than left as two controls doing one thing. */
+.py2dmol-fs-btn { display: none !important; }
+.py2dmol-map-tabs { display: none !important; }
+
+/* NO DRAG CORNER ON THE STRUCTURE OR THE MAP. A fluid box in a fixed shell
+   cannot also be a dragged one: the corner invited a size the layout had
+   already decided, and dragging it produced a box that overflowed its column.
+   Textareas keep their vertical handle - that one resizes content the reader
+   typed, not the shell. */
+#viewer-container #canvasContainer,
+#viewer-container #heatmapContainer,
+#viewer-container #scatterContainer,
+#viewer-container .py2dmol-slot > .py2dmol-slot-body { resize: none; }
+#viewer-container #canvasContainer .resize-handle,
+#viewer-container #scatterContainer .resize-handle { display: none !important; }
+
+/* THE RESULTS TABS. One strip for the column; the panels it switches are
+   pages below it, and the confidence summary above it stays put because it is
+   the headline rather than one panel among four. */
+.results-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 10px;
+  border-bottom: 1px solid var(--lf-line);
+}
+.results-tabs [role="tab"] {
+  appearance: none;
+  margin: 0 0 -1px;
+  padding: 6px 12px 7px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  color: var(--lf-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.results-tabs [role="tab"]:hover { color: var(--lf-ink); }
+.results-tabs [role="tab"][aria-selected="true"] {
+  color: var(--lf-ink);
+  background: var(--lf-paper);
+  border-color: var(--lf-line);
+}
+.result-page[hidden] { display: none; }
+.result-empty {
+  margin: 8px 2px;
+  color: var(--lf-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.result-empty[hidden] { display: none; }
+
+/* ===========================================================================
+   TOOLBAR LABELS DO NOT WRAP.
+
+   🔴 ROOT CAUSE: `.py2dmol-viewer-instance .btn-toggle>span` is a flex row with
+   `gap: 8px` and no `white-space`, inside a toolbar that gave every button an
+   equal `flex: 1 1 0` share. "Style & colour" wrapped to three lines and "Full
+   screen" to two, so the two-row toolbar was three rows tall in the middle of
+   the viewer's top edge - and the buttons grew to fit the text rather than the
+   text fitting the buttons.
+
+   The name is now just "Style", each tool is one nowrap line with a 36px
+   minimum, and the strip collapses to icons when its own width runs out.
+   =========================================================================== */
+.viewer-toolbar {
+  container-type: inline-size;
+  container-name: viewer-tools;
+}
+.viewer-toolbar .tool {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 36px;
+  white-space: nowrap;
+}
+.viewer-toolbar .tool > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  white-space: nowrap;
+}
+/* BELOW ~560px OF STRIP, THE WORDS GO AND THE ICONS STAY. The accessible name
+   comes from aria-label, which every tool carries for exactly this case; a
+   title alone would leave the button nameless to a screen reader. */
+@container viewer-tools (max-width: 560px) {
+  .viewer-toolbar .tool { min-width: 36px; }
+  .viewer-toolbar .tool .tool-label { display: none; }
+}
+
+/* 🔴 THE STATUS BLOCK IS THE ONE BOX IN THE CENTRE COLUMN THAT STATED A WIDTH
+   AND ALSO CARRIES PADDING. Its earlier rule gives it `width: 100%` with 12px
+   inset padding and the default content-box sizing, so it was its own width
+   plus 34px - measured 923px in an 891px column, 4px past the right edge of
+   the page on every desktop width. */
+#status-col, #status-row { box-sizing: border-box; }
+
+/* ===========================================================================
+   THEME TOKENS. ONE NAME PER COLOUR, TWO THEMES, NO EXCEPTIONS.
+
+   🔴 ROOT CAUSE OF THE OLD DARK MODE: the palette lived in four stacked `:root`
+   blocks plus forty-seven `body.lf-dark` overrides, each hard-coding a hex.
+   Three of those blocks disagreed about what "dark" was (#14161a, #171817,
+   #111815 all applied to the same page, last one winning by source order), and
+   a component added anywhere had to be darkened by hand - which is why the
+   toolbar chips, the tabs and the empty state stayed light grey in dark mode.
+
+   The names below are the contract. `--lf-*` are kept as aliases so the rules
+   already written keep working and now follow the theme automatically.
+   =========================================================================== */
+:root {
+  color-scheme: light;
+  --bg: #f2f0ea;
+  --surface: #fbfaf6;
+  --surface-2: #f4f2ec;
+  --border: #d2cfc7;
+  --ink: #20201e;
+  --ink-muted: #686660;
+  --accent-bg: #b5513d;
+  --accent-bg-dark: #943f30;
+  --accent-ink: #8f3a2b;
+  --viewer-bg: #ffffff;
+  --shadow: rgb(32 32 30 / 8%);
+  --lf-paper: var(--bg);
+  --lf-ink: var(--ink);
+  --lf-muted: var(--ink-muted);
+  --lf-line: var(--border);
+  --lf-forest: var(--accent-bg);
+  --lf-forest-dark: var(--accent-bg-dark);
+  --lf-mint: #f6e7e1;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #151412;
+  --surface: #1c1b18;
+  --surface-2: #24221e;
+  --border: #36332d;
+  --ink: #ebe7df;
+  --ink-muted: #a8a196;
+  --accent-bg: #c2452d;
+  --accent-bg-dark: #a53a25;
+  --accent-ink: #f08a72;
+  --viewer-bg: #1a1916;
+  --shadow: rgb(0 0 0 / 45%);
+  --lf-paper: var(--bg);
+  --lf-ink: var(--ink);
+  --lf-muted: var(--ink-muted);
+  --lf-line: var(--border);
+  --lf-forest: var(--accent-bg);
+  --lf-forest-dark: var(--accent-bg-dark);
+  --lf-mint: #392520;
+}
+
+/* EVERY SURFACE GOES THROUGH THE TOKENS, LATE ENOUGH TO OUTRANK THE EARLIER
+   HARD-CODED DARK RULES WITHOUT REWRITING THEM. */
+body.bg-gray-50 {
+  background: var(--bg) !important;
+  color: var(--ink);
+}
+.container-box,
+#status-row,
+#fold-panel,
+#upload-options-container,
+#predictionScoresBox,
+#downloads,
+#plddtContainer,
+#heatmapContainer,
+#scatterContainer,
+#controlsContainer {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+#viewer-container #rightPanelContainer {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+input[type="text"], input[type="number"], input[type="file"], input[type="search"],
+textarea, select {
+  background: var(--surface-2) !important;
+  color: var(--ink) !important;
+  border-color: var(--border) !important;
+}
+.btn:not(.btn-primary),
+button:not(.btn-primary):not(.theme-toggle),
+.btn-toggle > span {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--border);
+}
+.btn-primary, .btn-primary:hover:not(:disabled) {
+  color: #fff !important;
+  background: var(--accent-bg) !important;
+  border-color: var(--accent-bg) !important;
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-bg-dark) !important; }
+
+/* THE VIEWER'S CHIPS FOLLOW THE THEME INSTEAD OF py2Dmol's light greys. */
+#viewer-toolbar .tool > span,
+.viewer-toolbar .btn-toggle > span {
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+#viewer-toolbar .tool input:checked + span,
+#viewer-toolbar .tool[aria-pressed="true"] > span,
+#viewer-toolbar .tool[aria-expanded="true"] > span {
+  background: var(--accent-bg);
+  border-color: var(--accent-bg);
+  color: #fff;
+}
+#viewer-toolbar .tool input:checked + span:hover,
+#viewer-toolbar .tool[aria-pressed="true"] > span:hover,
+#viewer-toolbar .tool[aria-expanded="true"] > span:hover {
+  background: var(--accent-bg-dark);
+  color: #fff;
+}
+
+/* FOCUS IS A RING, AND ONLY ON KEYBOARD FOCUS. The old rule painted a 3px
+   translucent green outline on every click as well, which is noise on a page
+   with this many buttons. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+.theme-toggle { width: 34px; padding: 0; flex: 0 0 auto; }
+.theme-toggle i { font-size: 13px; }
+
+/* THIN, THEMED SCROLLBARS. The three columns scroll; a default 15px white
+   scrollbar in dark mode is a bright stripe down the middle of the page. */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* THE STAGE. The viewer's own background comes from the token, and the box
+   around it keeps a hairline border in both themes. */
+#viewer-container #canvasContainer {
+  background: var(--viewer-bg);
+  border: 1px solid var(--border);
+}
+#viewer-container #canvas { background: var(--viewer-bg); }
+
+/* THE MAP'S COLOUR BAR AND TOOLTIP. The heatmap canvas is a bare square; the
+   scale it draws is only readable if something says what the colours mean. */
+.map-colour-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.map-colour-bar[hidden] { display: none; }
+.map-bar-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  background: linear-gradient(90deg,
+    var(--map-lo, #3d55bd), var(--map-mid, #f2f0ea), var(--map-hi, #c2452d));
+}
+.map-bar-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+.map-tooltip {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  padding: 3px 7px;
+  border-radius: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font: 11px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px var(--shadow);
+}
+.map-tooltip[hidden] { display: none; }
+#heatmapCanvas { image-rendering: pixelated; }
+.results-tabs [role="tab"][aria-selected="true"] {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+/* The themed pLDDT mode is what "pLDDT" in the dropdown already asks for, so
+   its own entry would be a second, oddly-named option for the same thing. */
+#colorSelect option[value="localfold"] { display: none; }
+
+/* ===========================================================================
+   THE AUTHORITATIVE DARK SURFACES.
+   Written after everything above on purpose, and with the `html[data-theme]`
+   prefix so they outrank the earlier hard-coded dark rules of the same shape.
+   Without this the old `#1d2026`/`#20211f` boxes won by source order, which is
+   how three different dark palettes ended up on one page.
+   =========================================================================== */
+html[data-theme="dark"] .container-box,
+html[data-theme="dark"] #status-row,
+html[data-theme="dark"] #fold-panel,
+html[data-theme="dark"] #upload-options-container,
+html[data-theme="dark"] #predictionScoresBox,
+html[data-theme="dark"] #downloads,
+html[data-theme="dark"] #plddtContainer,
+html[data-theme="dark"] #heatmapContainer,
+html[data-theme="dark"] #scatterContainer,
+html[data-theme="dark"] #controlsContainer {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+html[data-theme="dark"] #viewer-container #canvasContainer {
+  background: var(--viewer-bg);
+  border-color: var(--border);
+}
+html[data-theme="dark"] #viewer-container #canvas { background: var(--viewer-bg); }
+html[data-theme="dark"] .btn:not(.btn-primary),
+html[data-theme="dark"] button:not(.btn-primary):not(.theme-toggle),
+html[data-theme="dark"] .btn-toggle > span,
+html[data-theme="dark"] .py2dmol-viewer-instance .btn-toggle > span {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--border);
+}
+html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="number"],
+html[data-theme="dark"] input[type="file"],
+html[data-theme="dark"] input[type="search"],
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  background: var(--surface-2) !important;
+  color: var(--ink) !important;
+  border-color: var(--border) !important;
+}
+html[data-theme="dark"] .page-head-fold h1,
+html[data-theme="dark"] .panel-intro h2,
+html[data-theme="dark"] .results-heading h2 { color: var(--ink); }
+html[data-theme="dark"] .eyebrow,
+html[data-theme="dark"] .workspace-tagline,
+html[data-theme="dark"] .viewer-heading { color: var(--ink-muted); }
+
+/* ===========================================================================
+   TOKEN-ANCHORED COLOURS THAT WERE STILL HARD-CODED.
+   The rules above were written before the tokens existed, so their hexes hold
+   the OLD palette. Two of them have !important, which is why an ordinary token
+   rule loses to them - each of these carries the same weight and comes later.
+   =========================================================================== */
+#canvasContainer::after {
+  background: var(--viewer-bg);
+  color: var(--ink-muted);
+}
+.container-box { box-shadow: 0 2px 10px var(--shadow); }
+#rightPanelContainer, #canvasContainer { box-shadow: 0 5px 20px var(--shadow); }
+#status-row { background: var(--surface); border-color: var(--border); }
+#fold-panel, #upload-options-container {
+  background: linear-gradient(145deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+#sequence, #target {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+#sequence:focus, #target:focus {
+  border-color: var(--accent-ink);
+  box-shadow: 0 0 0 3px var(--shadow);
+}
+.btn-primary {
+  border-color: var(--accent-bg) !important;
+  background: var(--accent-bg) !important;
+  box-shadow: 0 2px 5px var(--shadow);
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-bg-dark) !important; }
+.btn:focus-visible, button:focus-visible, select:focus-visible {
+  outline: 3px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+.page-head-fold h1::after {
+  background: repeating-linear-gradient(135deg, transparent 0 5px, var(--border) 5px 7px, transparent 7px 12px);
+}
+
+/* THE MAP'S TABS ARE BUILT BY THE BUNDLE WITH INLINE LIGHT GREYS; they are
+   hidden on this page (the tabs above the panel own the choice), so nothing to
+   do beyond not leaving a light strip if one ever shows. */
+.py2dmol-map-tabs [role="tab"] { color: var(--ink); }
+.py2dmol-map-tabs [role="tab"][aria-selected="true"] { color: var(--ink); }
+
+/* ===========================================================================
+   THE OBJECT PICKER ROW.
+   🔴 ROOT CAUSE: py2Dmol's renderer forces `#objectRow` to `display:flex` in
+   inline style (it only does this so its own prev/next controls have somewhere
+   to sit), and the empty `<select>` inside it is a visible chip. On a page that
+   deliberately mounts ONE object at a time, an empty dropdown is chrome with no
+   function: nothing can be picked. The picker stays; the row is gone until a
+   fold exists to name.
+   =========================================================================== */
+#objectRow {
+  display: none;
+}
+#objectRow.has-object {
+  display: flex;
+}
+
+/* ===========================================================================
+   THE SCATTER PLOT'S BOX.
+   🔴 ROOT CAUSE OF THE EMPTY SQUARE: `#scatterContainer` sits in the right rail
+   as a child of `#rightPanelsContainer`, and the sheet gives that column
+   `gap: 12px`. The vendor's own visibility routine writes `display:flex` on it,
+   so the gap puts an empty rounded box with padding between the panel above and
+   the panel below - a card that says nothing. Hidden it is collapsed by the
+   UA rule; when a fold carries points it should read as one more page, which is
+   what the margins do.
+   =========================================================================== */
+#scatterContainer {
+  margin: 0;
+  padding: 8px;
+}
+#scatterContainer[style*="none"] { display: none !important; }
+#scatterCanvas { display: block; width: 100%; height: auto; }
+
+/* ===========================================================================
+   THE MEASURED DARK PAGE. Three of the last hard-coded surfaces, each with a
+   reason it survived the token sweep above.
+   =========================================================================== */
+
+/* THE CANVAS'S EMPTY-STATE COVER. It was `#151716` in every theme - one of the
+   three darks that used to disagree - and on the light page it put a black
+   rectangle where the structure goes. The cover is a PLACEHOLDER for a picture,
+   so it takes the stage's ground and only the type changes. */
+#canvasContainer::after { background: var(--viewer-bg); color: var(--ink-muted); }
+
+/* THE RESULTS TABS. Written inline by the bundle as `#ffffff` / `#e9e9e9`; the
+   strip sits inside a card, so it takes the surface behind it. */
+.results-tabs [role="tab"][aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--border);
+}
+.results-tabs [role="tab"] { color: var(--ink-muted); }
+
+/* THE STATUS LINE. py2Dmol's own colour is a mid-grey that reads as disabled
+   text on the dark surface. */
+#status-message, #status-line { color: var(--ink); }
+html[data-theme="dark"] #status-message { color: var(--ink); }

@@ -14,6 +14,25 @@ AI Context: STANDALONE WEB APP ENTRY POINT
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LocalFold</title>
+    <!-- THE THEME IS SET BEFORE THE FIRST PAINT, NOT AFTER. A class added by the
+         module arrives after the stylesheet and after the browser has already
+         painted the light page, so a dark-mode reader watched the cream flash
+         on every load. This reads the same key app.js writes and falls back to
+         the OS setting; it cannot throw into a blank page because the whole
+         thing is inside one try. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("localfold-theme");
+          var dark = stored !== null
+            ? stored === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
     <!-- No Tailwind. It was loaded from cdn.tailwindcss.com - an in-browser JIT
          compiler that re-scans the DOM on every mutation, and warns in the
          console that it is not for production - to supply EIGHT utility rules.
@@ -75,7 +94,16 @@ AI Context: STANDALONE WEB APP ENTRY POINT
             <p class="workspace-tagline">Sequence to structure, on your own laptop.</p>
             <div class="fold-actions">
               <button type="button" id="model-shortcut" class="btn btn-grey btn-small" title="Jump to model settings">Model</button>
-              <button type="button" id="theme-toggle" class="btn btn-grey btn-small" aria-pressed="false">Dark</button>
+              <!-- ONE ICON, NOT A WORD THAT CHANGES. "Dark"/"Light" as button
+                   text was two labels for one state and took the width of the
+                   longest; a sun/moon pair with an aria-label and aria-pressed
+                   says what will happen and what is set. -->
+              <button type="button" id="theme-toggle" class="btn btn-grey btn-small theme-toggle"
+                      aria-pressed="false"
+                      aria-label="Switch to dark theme"
+                      title="Switch theme">
+                  <i class="fa-solid fa-moon" aria-hidden="true"></i>
+              </button>
               <button type="button" id="add-entity" class="btn btn-grey btn-small">
                 <i class="fa-solid fa-plus"></i>
                 <span>Add entity</span>
@@ -108,6 +136,11 @@ AI Context: STANDALONE WEB APP ENTRY POINT
              aborts the REST of initializeApp. The symptom is not an error; it is
              that the MSA panel never wires itself up. Hidden is safe. Deleted is
              not. Our own ids are distinct from theirs for the same reason. -->
+        <!-- THE LEFT RAIL: the molecule to fold, and py2Dmol's loader settings
+             beneath it. It is one scroll column of the desktop shell (see
+             web/localfold.css), so the page head, the viewer and the analysis
+             column are all on screen at once and the WINDOW never scrolls. -->
+        <div class="app-rail">
         <div id="fold-panel" class="container-box page-width" style="margin-bottom: 10px;">
           <div class="panel-intro"><span class="eyebrow">01 / INPUT</span><h2>Your molecule</h2><p>Paste a sequence or describe the entities to fold.</p></div>
           <div class="fetch-panel">
@@ -559,7 +592,14 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                 <input type="checkbox" id="alignFramesCheckbox" checked>
                 <input type="checkbox" id="loadMSACheckbox" checked>
             </div>
+        </div><!-- /#upload-options-container -->
+        </div><!-- /.app-rail -->
 
+        <!-- THE CENTRE COLUMN'S TOP: the status block, which never changes
+             height, so the viewer below it never moves. It used to live
+             inside #upload-options-container - the only visible thing in a
+             box of hidden loader settings. -->
+        <div id="status-col">
             <!-- STATUS AND PROGRESS ARE ONE BLOCK, AND IT NEVER CHANGES HEIGHT.
                  The bar used to live at the foot of the fold panel with a
                  `hidden` attribute, so every fold grew that panel by 11px and
@@ -618,6 +658,60 @@ AI Context: STANDALONE WEB APP ENTRY POINT
 
                 <div id="viewerColumn">
                     <div class="viewer-heading"><span class="eyebrow">02 / STRUCTURE</span><span>Prediction workspace</span></div>
+                    <!-- THE VIEWER'S OWN TOOLS LIVE ON ITS TOP EDGE, because they act
+                         on the picture and not on the numbers beside it. They used to
+                         sit at the head of the Results column - seven buttons above a
+                         row of analysis - which put the camera controls furthest from
+                         the thing they move and left the centre pane with a tab strip
+                         of its own to compete with. -->
+                    <div id="viewer-toolbar" class="viewer-toolbar" role="toolbar"
+                         aria-label="Structure viewer tools">
+                        <label class="btn-toggle tool" id="orientToggle" title="Orient to best view" aria-label="Orient to best view">
+                            <input type="checkbox" style="display: none;">
+                            <span><i class="fa-solid fa-crosshairs"></i><span class="tool-label">Orient</span></span>
+                        </label>
+                        <!-- FOCUS IS A LATCH, so it says aria-pressed rather than
+                             aria-expanded - the shared rule in style.css lights either.
+                             Beside Orient because the two are the camera moves a CLICK
+                             makes. NOT crosshairs: Orient wears those, right beside it. -->
+                        <button id="focusButton" class="btn-toggle tool" type="button"
+                            aria-label="Focus on a residue"
+                            aria-pressed="false"
+                            title="Click a residue or ligand to draw its neighbours' side chains, move in on it and clip around it. The view does not turn. Click the background to come back out.">
+                            <span><i class="fa-solid fa-magnifying-glass"></i><span class="tool-label">Focus</span></span>
+                        </button>
+                        <label class="btn-toggle tool" id="rotateToggle" title="Toggle auto-rotation" aria-label="Spin the structure">
+                            <input type="checkbox" id="rotationCheckbox">
+                            <span><i class="fa-solid fa-rotate"></i><span class="tool-label">Spin</span></span>
+                        </label>
+                        <button id="styleToggle" class="btn-toggle tool" type="button"
+                            aria-label="Style and colour settings"
+                            aria-expanded="false" aria-controls="stylePanel"
+                            title="Render style and its settings">
+                            <span><i class="fa-solid fa-palette"></i><span class="tool-label">Style</span></span>
+                        </button>
+                        <!-- Clip: PyMOL's near/far slab, cutting the drawing. -->
+                        <label class="btn-toggle tool" id="clipToggle" aria-label="Clip the view to a slab"
+                            title="Clip the view to a slab, as in PyMOL: near and far planes that cut the drawing">
+                            <input type="checkbox" id="clipCheckbox">
+                            <span><i class="fa-solid fa-cube"></i><span class="tool-label">Clip</span></span>
+                        </label>
+                        <button id="saveImageButton" class="btn-toggle tool" type="button"
+                            aria-label="Capture an image or video"
+                            aria-expanded="false" aria-controls="savePanel"
+                            title="Capture an image or a video">
+                            <span><i class="fa-solid fa-camera"></i><span class="tool-label">Capture</span></span>
+                        </button>
+                        <!-- ONE FULLSCREEN CONTROL. py2Dmol's own installFullscreen
+                             also adds a .py2dmol-fs-btn to the canvas box; the sheet
+                             hides that one, so this is the only one on the page. -->
+                        <button id="fullscreenButton" class="btn-toggle tool" type="button"
+                            aria-pressed="false"
+                            aria-label="Full screen (Esc to leave)"
+                            title="Open the structure viewer full screen">
+                            <span><i class="fa-solid fa-expand"></i><span class="tool-label">Full screen</span></span>
+                        </button>
+                    </div>
                     <!-- data-autosize="css": THE STYLESHEET OWNS THIS BOX, so
                          py2Dmol's setupViewport writes no inline width and a
                          media query can reach it. Without it every rule aimed
@@ -645,65 +739,14 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                     <div class="results-heading"><span class="eyebrow">03 / ANALYSIS</span><h2>Results</h2></div>
                     <div id="rightPanelContainer" class="container-box">
 
-                        <!-- Toolbar (two rows) -->
-                        <div id="navigationControls" class="toolbar" style="margin-bottom: 4px;">
-                            <div class="toolbar-row">
-                                <label class="btn-toggle btn-flex" id="orientToggle" title="Orient to best view">
-                                    <input type="checkbox" style="display: none;">
-                                    <span><i class="fa-solid fa-crosshairs"></i>Orient</span>
-                                </label>
-
-                                <!-- FOCUS IS A LATCH, so it says aria-pressed
-                                     rather than aria-expanded - the shared rule
-                                     in style.css lights either. Beside Orient
-                                     because the two are the camera moves a
-                                     CLICK makes: Orient frames everything,
-                                     Focus moves in on one thing.
-                                     NOT crosshairs: Orient wears those, right
-                                     beside it. A magnifier is what the mode
-                                     does - look closely at one thing - and it
-                                     is the only one on the page, so it cannot
-                                     be read as search. -->
-                                <button id="focusButton" class="btn-toggle btn-flex"
-                                    aria-pressed="false"
-                                    title="Click a residue or ligand to draw its neighbours' side chains, move in on it and clip around it. The view does not turn. Click the background to come back out.">
-                                    <span><i class="fa-solid fa-magnifying-glass"></i>Focus</span>
-                                </button>
-
-                                <!-- Rotate: checkbox styled as a button -->
-                                <label class="btn-toggle btn-flex" id="rotateToggle" title="Toggle auto-rotation">
-                                    <input type="checkbox" id="rotationCheckbox">
-                                    <span><i class="fa-solid fa-rotate"></i>Spin</span>
-                                </label>
-                                <button id="fullscreenButton" class="btn-toggle btn-flex" type="button" title="Open the structure viewer full screen">
-                                    <span><i class="fa-solid fa-expand"></i>Full screen</span>
-                                </button>
-
-
-                            </div>
-
-                            <div class="toolbar-row">
-                                <button id="styleToggle" class="btn-toggle btn-flex"
-                                    aria-expanded="false" aria-controls="stylePanel"
-                                    title="Render style and its settings">
-                                    <span><i class="fa-solid fa-palette"></i>Style &amp; colour</span>
-                                </button>
-
-                                <!-- Clip: PyMOL's near/far slab, cutting the drawing. -->
-                                <label class="btn-toggle btn-flex" id="clipToggle"
-                                    title="Clip the view to a slab, as in PyMOL: near and far planes that cut the drawing">
-                                    <input type="checkbox" id="clipCheckbox">
-                                    <span><i class="fa-solid fa-cube"></i>Clip</span>
-                                </label>
-
-                                <button id="saveImageButton" class="btn-toggle btn-flex"
-                                    aria-expanded="false" aria-controls="savePanel"
-                                    title="Capture an image or a video">
-                                    <span><i class="fa-solid fa-camera"></i>Save image</span>
-                                </button>
-                            </div>
-                        </div>
-
+                        <!-- THE SEVEN VIEWER TOOLS ARE GONE FROM HERE, to the
+                             toolbar on the viewer's top edge. They were the first
+                             thing in the Results column - seven buttons above the
+                             analysis they act on - and their panels stayed below,
+                             so the trigger and its panel were separated by the
+                             object picker. Nothing in this container is a control
+                             any more except the object picker and the panels it
+                             opens. -->
 
                         <!-- WHICH OBJECT, and how many. Directly under the
                              buttons because everything below it - Style, Clip,
@@ -893,40 +936,11 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                          now; what this page still owns is the layout slot. -->
                     <div id="selectionPanelMount"></div>
 
-                    <!-- THE HEATMAP PANEL, which used to be the PAE panel and
-                         draws any map now - PAE and the trunk's contact map,
-                         picked with a tab strip.
-
-                         🔴 THE NEW IDS, AND THE RENAME IS NOT COSMETIC. The
-                         panel's JS still accepts #paeContainer/#paeCanvas, so
-                         the old names looked fine - but the vendored
-                         STYLESHEET has no rule for them at all, and the tab
-                         strip is absolutely positioned. Without
-                         `position: relative` here it escapes to the nearest
-                         positioned ancestor, .py2dmol-viewer-instance, and is
-                         drawn somewhere else on the page; the container also
-                         loses its 340px, its square aspect and its overflow
-                         clip, and the canvas its absolute fill. Accepted by
-                         the code and unstyled by the CSS is exactly the shape
-                         of bug that looks like it works. -->
-                    <div id="heatmapContainer" class="container-box" style="display: none;">
-                        <canvas id="heatmapCanvas" style="cursor: crosshair;"></canvas>
-                    </div>
-
-                    <!-- A BioEmu2 ENSEMBLE'S PCA, on py2Dmol's own scatter plot: one point a
-                         sample, the frame on screen highlighted, a click jumps to it. Hidden
-                         until a fold's frames carry points (showEnsembleScatter in web/app.js). -->
-                    <div id="scatterContainer" class="container-box" style="display: none; position: relative;">
-                        <canvas id="scatterCanvas" style="cursor: pointer;"></canvas>
-                    </div>
-
-                    <!-- THE RAW PREDICTION, under the confidence it describes.
-                         py2Dmol's own Save writes a session - the view, the
-                         selections, what is on screen. These two write what the
-                         MODEL produced: the structure and its scores. Different
-                         things, so they are not the same button, and this is
-                         where a reader looking at pLDDT and PAE already is. -->
-                    <!-- Prediction scores card -->
+                    <!-- THE CONFIDENCE SUMMARY IS THE FIRST THING IN THE RESULTS
+                         AREA, because it is the answer. It used to sit below the
+                         PAE panel and the downloads, so the two numbers a reader
+                         pressed Fold for were the last things down the column -
+                         and on the desktop shell the last things out of view. -->
                     <div id="predictionScoresBox" class="container-box" style="display: none;">
                         <div class="eyebrow">CONFIDENCE SUMMARY</div>
                         <!-- 🔴 NO TITLE AND NO BADGE. Every cell here is
@@ -955,47 +969,113 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                         </div>
                     </div>
 
-                    <!-- THE RAW PREDICTION, under the confidence it describes.
-                         py2Dmol's own Save writes a session - the view, the
-                         selections, what is on screen. These two write what the
-                         MODEL produced: the structure and its scores. Different
-                         things, so they are not the same button, and this is
-                         where a reader looking at pLDDT and PAE already is. -->
-                    <div id="downloads" class="container-box" style="display: none;">
-                        <button id="download-pdb" class="btn btn-secondary"
-                            title="Download the predicted structure">
-                            <i class="fa-solid fa-download"></i><span>PDB</span>
-                        </button>
-                        <button id="download-fasta" class="btn btn-secondary" title="Download the folded polymer sequences as FASTA">
-                            <i class="fa-solid fa-dna"></i><span>FASTA</span>
-                        </button>
-                        <button id="download-json" class="btn btn-secondary" title="Download model data as JSON">
-                            <i class="fa-solid fa-code"></i><span>JSON</span>
-                        </button>
-                        <button id="report-pdf" class="btn btn-secondary" title="Print or save a summary report as PDF">
-                            <i class="fa-solid fa-file-pdf"></i><span>Report PDF</span>
-                        </button>
-                        <button id="download-all" class="btn btn-secondary"
-                            title="Download everything this fold used and produced,
-                                   as a zip in the AlphaFold 3 server's layout:
-                                   structure, scores, contacts, the request, and
-                                   one alignment per chain. Drop the zip back on
-                                   the alignment upload box to fold again with
-                                   exactly these alignments.">
-                            <i class="fa-solid fa-download"></i><span>All</span>
-                        </button>
-                        <!-- ...AND THE VIEWER'S SESSION, py2Dmol's own format:
-                             every object, frame, map, colour, selection and
-                             the camera. It opens on py2dmol.solab.org, where
-                             the same button sits in the page's upper-right
-                             corner, and back here through the upload box. No JS
-                             of ours: the vendored bundle wires any
-                             #saveStateButton to saveViewerState. -->
-                        <button id="saveStateButton" class="btn btn-secondary" type="button"
-                            title="Save everything the viewer is showing as a py2Dmol session (.json): every fold, its frames, maps, colours, selections and the camera. Opens on py2dmol.solab.org.">
-                            <i class="fa-solid fa-floppy-disk"></i><span>Session</span>
-                        </button>
+                    <!-- ONE TAB SET FOR THE RESULTS. The centre pane had a strip of
+                         its own from py2Dmol's slot layer, and the map panel had
+                         another for PAE/contact, so one picture was reachable
+                         three ways and the column read as three panels stacked.
+                         Summary is the scores above and the archive; pLDDT is the
+                         residue trace; PAE and Contact are the two maps the
+                         heatmap can draw, chosen here. -->
+                    <div id="results-tabs" class="results-tabs" role="tablist"
+                         aria-label="Result panels">
+                        <button type="button" role="tab" id="resultsTabSummary"
+                            data-results-tab="summary" aria-selected="true"
+                            aria-controls="result-page-summary">Summary</button>
+                        <button type="button" role="tab" id="resultsTabPlddt"
+                            data-results-tab="plddt" aria-selected="false" tabindex="-1"
+                            aria-controls="result-page-plddt">pLDDT</button>
+                        <button type="button" role="tab" id="resultsTabPae"
+                            data-results-tab="pae" aria-selected="false" tabindex="-1"
+                            aria-controls="result-page-map">PAE</button>
+                        <button type="button" role="tab" id="resultsTabContact"
+                            data-results-tab="contact" aria-selected="false" tabindex="-1"
+                            aria-controls="result-page-map">Contact</button>
                     </div>
+
+                    <!-- SUMMARY'S PAGE IS THE ARCHIVE, under the scores it belongs
+                         to. The scores themselves stay above the tabs on every
+                         page: they are the headline, not one panel among four. -->
+                    <div id="result-page-summary" class="result-page">
+                        <!-- THE RAW PREDICTION, under the confidence it describes.
+                             py2Dmol's own Save writes a session - the view, the
+                             selections, what is on screen. These two write what the
+                             MODEL produced: the structure and its scores. Different
+                             things, so they are not the same button, and this is
+                             where a reader looking at pLDDT and PAE already is. -->
+                        <div id="downloads" class="container-box" style="display: none;">
+                            <button id="download-pdb" class="btn btn-secondary"
+                                title="Download the predicted structure">
+                                <i class="fa-solid fa-download"></i><span>PDB</span>
+                            </button>
+                            <button id="download-fasta" class="btn btn-secondary" title="Download the folded polymer sequences as FASTA">
+                                <i class="fa-solid fa-dna"></i><span>FASTA</span>
+                            </button>
+                            <button id="download-json" class="btn btn-secondary" title="Download model data as JSON">
+                                <i class="fa-solid fa-code"></i><span>JSON</span>
+                            </button>
+                            <button id="report-pdf" class="btn btn-secondary" title="Print or save a summary report as PDF">
+                                <i class="fa-solid fa-file-pdf"></i><span>Report PDF</span>
+                            </button>
+                            <button id="download-all" class="btn btn-secondary"
+                                title="Download everything this fold used and produced,
+                                       as a zip in the AlphaFold 3 server's layout:
+                                       structure, scores, contacts, the request, and
+                                       one alignment per chain. Drop the zip back on
+                                       the alignment upload box to fold again with
+                                       exactly these alignments.">
+                                <i class="fa-solid fa-download"></i><span>All</span>
+                            </button>
+                            <!-- ...AND THE VIEWER'S SESSION, py2Dmol's own format:
+                                 every object, frame, map, colour, selection and
+                                 the camera. It opens on py2dmol.solab.org, where
+                                 the same button sits in the page's upper-right
+                                 corner, and back here through the upload box. No JS
+                                 of ours: the vendored bundle wires any
+                                 #saveStateButton to saveViewerState. -->
+                            <button id="saveStateButton" class="btn btn-secondary" type="button"
+                                title="Save everything the viewer is showing as a py2Dmol session (.json): every fold, its frames, maps, colours, selections and the camera. Opens on py2dmol.solab.org.">
+                                <i class="fa-solid fa-floppy-disk"></i><span>Session</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- THE MAP PAGE. One panel, two maps, and the choice belongs
+                         to the tab strip above rather than to a second strip
+                         bolted to the panel's top edge - absolutely positioned,
+                         22px tall, and painted outside the box it belongs to. -->
+                    <div id="result-page-map" class="result-page" hidden>
+                        <div id="heatmapWrap" style="position: relative;">
+                            <div id="heatmapContainer" class="container-box" style="display: none;">
+                                <canvas id="heatmapCanvas" style="cursor: crosshair;"></canvas>
+                            </div>
+                            <!-- THE SCALE, IN WORDS. The map is a bare square of
+                                 colour; without this the ramp is decoration. -->
+                            <div id="mapColourBar" class="map-colour-bar" hidden>
+                                <span id="mapBarMin">0 Å</span>
+                                <span class="map-bar-track" id="mapBarTrack"></span>
+                                <span id="mapBarMax">30 Å</span>
+                            </div>
+                            <div class="map-bar-ticks" id="mapBarTicks" hidden>
+                                <span>0</span><span id="mapBarMid">15</span><span>30</span>
+                            </div>
+                            <div id="mapTooltip" class="map-tooltip" role="status" hidden></div>
+                            <p class="result-empty" id="mapEmpty" hidden>Nothing to map yet - this appears with a prediction.</p>
+                        </div>
+                    </div>
+
+                    <!-- A BioEmu2 ENSEMBLE'S PCA, on py2Dmol's own scatter plot: one point a
+                         sample, the frame on screen highlighted, a click jumps to it. Hidden
+                         until a fold's frames carry points (showEnsembleScatter in web/app.js).
+
+                         🔴 ONE OF THEM. There were two #scatterContainer elements -
+                         the same id, two canvases, two resize handles - and the
+                         vendor's scatter initialiser takes the first, so the second
+                         was a second empty box with a drag corner that resized
+                         nothing. -->
+                    <div id="scatterContainer" class="container-box" style="display: none; position: relative;">
+                        <canvas id="scatterCanvas" style="cursor: pointer;"></canvas>
+                    </div>
+
 
                     <!-- 🔴 THE CONFIDENCE TRACE'S BOX, WHICH IS HALF OF TURNING IT
                          ON. py2Dmol's panel finds its own DOM and does nothing
@@ -1007,12 +1087,8 @@ AI Context: STANDALONE WEB APP ENTRY POINT
                          Every structure on this page is a prediction, which is
                          why we ask for a plot py2Dmol's own site does not
                          offer - there a B-factor column would be titled pLDDT. -->
-                    <section class="confidence-section"><div class="eyebrow">RESIDUE CONFIDENCE</div><div id="plddtContainer" class="container-box" style="display: none;"></div></section>
-
-                    <!-- Scatter Plot Container (mirrors main viewer sizing; JS sets dimensions) -->
-                    <div id="scatterContainer" class="container-box" style="display: none; position: relative;">
-                        <canvas id="scatterCanvas" style="cursor: pointer;"></canvas>
-                        <div class="resize-handle" aria-label="Resize scatter plot"></div>
+                    <div id="result-page-plddt" class="result-page" hidden>
+                        <section class="confidence-section"><div class="eyebrow">RESIDUE CONFIDENCE</div><div id="plddtContainer" class="container-box" style="display: none;"></div></section>
                     </div>
                 </div>
             </div>
@@ -1135,8 +1211,6 @@ AI Context: STANDALONE WEB APP ENTRY POINT
             </div>
         </div>
 
-    </div>
-
     <!-- Footer -->
     <footer style="margin-top: var(--container-gap); padding: 0; color: #6b7280; font-size: 11px;">
         <div class="page-width"
@@ -1171,6 +1245,9 @@ AI Context: STANDALONE WEB APP ENTRY POINT
             <div id="privacy-note" style="flex: 0 1 auto; min-width: 0;"></div>
         </div>
     </footer>
+
+    </div>
+
 
     <!-- THE DEPLOYED PAGE LOADS THE BUNDLE. py2dmol.solab.org serves this
          file from the repo root, so twenty-seven tags meant twenty-seven
