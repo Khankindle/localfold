@@ -172,3 +172,9 @@ model-rfd4p-int8/*.safetensors
 model-rfd4p-int8/shards/
 # metal/rfd4p/gate.py's reference trajectories: a CPU forward per arm, gigabytes, rebuilt on demand
 /.rfd4p-gate/
+
+# The agent's browser harness and the screenshots it measured against. Local
+# development tooling, not project content - same argument the oracle dumps make
+# above.
+/.browser-tmp/
+/.shots/
